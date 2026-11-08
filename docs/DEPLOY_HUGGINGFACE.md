@@ -1,5 +1,9 @@
 # Deploy FinLens to Hugging Face Spaces
 
+> **Heads-up (checked Nov 2026):** Hugging Face has marked **Docker Spaces as paid** for free accounts (the
+> free CPU tier now needs a PRO subscription, per their forum). If you do not want to pay, use
+> [DEPLOY_RENDER.md](DEPLOY_RENDER.md) instead. This guide still applies if you have PRO.
+
 Result: a public URL like `https://<your-hf-username>-finlens.hf.space` that you can put on your resume.
 Free CPU tier, no GPU, no Ollama, so the hosted demo runs in **rule-based mode** (the Dockerfile sets
 `FINLENS_LLM_PROVIDER=none`). The sample corpus is generated and indexed while the image builds.

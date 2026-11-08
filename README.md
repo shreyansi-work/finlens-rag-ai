@@ -285,8 +285,10 @@ These keep the project small and runnable anywhere; each is one module to swap.
 
 - **Docker:** `docker build -t finlens . && docker run -p 8000:7860 finlens`. The image generates and indexes
   the sample corpus at build time and runs in rule-based mode.
-- **Hugging Face Spaces (Docker SDK):** see [docs/DEPLOY_HUGGINGFACE.md](docs/DEPLOY_HUGGINGFACE.md). Spaces
-  have no GPU or Ollama on the free tier, so the hosted demo uses rule-based mode.
+- **Render (free web service, recommended):** see [docs/DEPLOY_RENDER.md](docs/DEPLOY_RENDER.md). The free
+  tier has no GPU or Ollama and sleeps after 15 minutes idle, so the hosted demo uses rule-based mode.
+- **Hugging Face Spaces (Docker SDK):** see [docs/DEPLOY_HUGGINGFACE.md](docs/DEPLOY_HUGGINGFACE.md). Docker
+  Spaces now need a paid PRO subscription.
 - Publishing steps for GitHub: [docs/GITHUB_STEPS.md](docs/GITHUB_STEPS.md).
 
 ## Using real filings
