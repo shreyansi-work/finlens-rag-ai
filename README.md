@@ -3,6 +3,8 @@
 [![ci](https://github.com/shreyansi-work/finlens-rag-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyansi-work/finlens-rag-ai/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.12-blue)
 
+**Live demo: https://finlens-rag-ai.onrender.com/** (free hosting: if it has been idle it takes about a minute to wake up; synthetic data, rule-based mode).
+
 FinLens answers questions about company filings (annual reports, quarterly results, earnings-call
 transcripts) with page-level citations, correct numbers, and an explicit "I don't know" when the
 evidence is missing. Every technique is behind a flag and measured on a golden evaluation set, including
