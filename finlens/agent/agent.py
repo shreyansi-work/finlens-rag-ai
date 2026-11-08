@@ -8,7 +8,7 @@ drops unsupported numbers.
 import json
 import re
 
-from finlens import llm, synthesis, tracing
+from finlens import llm, outline, synthesis, tracing
 from finlens.agent import tools as T
 from finlens.config import Settings
 from finlens.generation import (
@@ -44,6 +44,7 @@ class Run:
         self.conn, self.s = conn, s
         self.tools_used, self.citations, self.evidence, self.computed = [], [], [], []
         self.missing = []
+        self.passages = []          # (doc, page, text) of what was retrieved: what an LLM may cite
 
     def call(self, name, **args):
         out = T.run_tool(name, args, self.conn, self.s)
@@ -54,6 +55,7 @@ class Run:
                 tracing.current().event("injection_blocked", doc=r["doc"], page=r["page"])
         self.citations += out.get("citations", [])
         self.evidence += [r["text"] for r in out.get("results", [])]
+        self.passages += [(r["doc"], r["page"], r["text"]) for r in out.get("results", [])]
         self.evidence += [json.dumps(r) for r in out.get("rows", []) + out.get("edges", [])]
         if name == "calculator" and out.get("ok"):
             self.computed.append(out["result"])
@@ -116,18 +118,80 @@ def describe_rows(rows: list[dict], plan: QueryPlan, run: Run) -> list[str]:
     return out
 
 
-def best_sentences(results: list[dict], query: str, limit: int = 3, must: set | None = None) -> list[str]:
+# Question words that say what kind of answer is wanted, not what it is about ("how LONG is the warranty").
+WEAK_TERMS = {"long", "kind", "type", "way", "need", "needs", "provide", "give", "get", "use", "used", "using",
+              "make", "take", "mention", "mentioned", "say", "says", "said", "include", "included", "list",
+              "tell", "explain", "describe", "details", "detail", "information", "info", "document", "documents"}
+
+
+def _clip(text: str, limit: int = 320) -> str:
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+
+
+def _candidate_sentences(text: str, generic: bool) -> list[str]:
+    """Uploads are full of bullet lists with no punctuation, which otherwise become one giant 'sentence'."""
+    if not generic:
+        return sentences(text)
+    return [_clip(s) for piece in re.split(r"\s*[•●▪]\s*|\n+", text) for s in sentences(piece)]
+
+
+def structure_parts(run: "Run", plan: QueryPlan) -> list[str]:
+    """Uploads: answer 'summarize', 'key points', 'how many X' and 'which X' from the document's structure.
+    Every item is cited with the real page it was found on."""
+    conn = run.conn
+    if plan.route == "enumerate":
+        items = outline.enumerate_labels(conn, plan.noun)
+        if not items:
+            if plan.ask_kind != "list" or plan.noun not in outline.STRUCTURAL_NOUNS:
+                return []                                # nothing countable/structural: search the text
+            # "which modules are there" when nothing is labelled that way: show how the document is organised
+            parts = []
+            for text, doc, page in outline.summary_parts(conn, lead_in=False):
+                note = f"Nothing in the document is labelled “{plan.noun}”, so here is how it is organised. {text}"
+                run.evidence.append(text)
+                run.passages.append((doc, page, text))
+                parts.append(note)
+            return parts
+        run.computed.append(len(items))                  # the count itself is a computed, checkable figure
+        for i in items:
+            text = f"{plan.noun.capitalize()} {i['label']}: {i['title']}".strip(": ")
+            run.evidence.append(text)
+            run.passages.append((i["doc"], i["page"], text))
+        return outline.enumeration_parts(plan.noun, items, plan.ask_kind == "count")
+    parts = []
+    for text, doc, page in outline.summary_parts(conn):
+        run.evidence.append(text)
+        run.passages.append((doc, page, text))
+        parts.append(text)
+    return parts
+
+
+def best_sentences(results: list[dict], query: str, limit: int = 3, must: set | None = None,
+                   generic: bool = False) -> list[str]:
     """Pick the most relevant evidence sentences, at most one per document first.
     If `must` is given, a sentence has to contain at least one of those terms."""
     terms = T.key_terms(query)
+    if generic:
+        terms = terms - WEAK_TERMS
     scored, seen = [], set()
     for r in results:
-        for sent in sentences(r["text"]):
+        head = set(content_tokens(r.get("section") or "")) if generic else set()
+        for sent in _candidate_sentences(r["text"], generic):
             toks = set(content_tokens(sent))
             if " | " in sent or sent in seen or (must and not must & toks):
                 continue
             seen.add(sent)
             overlap = len(terms & toks) + (0.5 if CAUSAL.search(sent) else 0)
+            if generic and len(terms) >= 2:
+                # Uploads: one shared word ("CEO") is not evidence, so questions the document cannot answer
+                # abstain. The section heading counts as context: sentences under "9. Out of Scope" need not
+                # repeat those words themselves.
+                if len(terms & (toks | head)) < 2:
+                    continue
+                scored.append((overlap + 0.5 * len(terms & head), r["score"], sent, r["doc"], r["page"]))
+                continue
             if terms & toks or not terms:          # broad question: keep sentences in rank order
                 scored.append((overlap, r["score"], sent, r["doc"], r["page"]))
     scored.sort(key=lambda x: (-x[0], -x[1]))
@@ -226,7 +290,16 @@ def plan_and_execute(plan: QueryPlan, run: Run) -> Answer:
     if plan.route == "direct":
         return Answer(answer="Hello! Ask me about the companies in the filings corpus.", confidence="high", route="direct")
 
-    if plan.route == "live":
+    if plan.route in ("outline", "enumerate"):
+        parts += structure_parts(run, plan)
+        if parts:
+            confidence = "high" if plan.route == "enumerate" else "medium"
+        else:
+            plan.route = "vector"                  # nothing countable or structural: search the text instead
+
+    if plan.route in ("outline", "enumerate"):
+        pass                                       # already answered from the document's structure
+    elif plan.route == "live":
         for ticker in f.get("ticker") or []:
             quote = run.call("get_live_quote", ticker=ticker)
             eps = run.call("query_financials", question=f"{ticker} eps", filters={"ticker": [ticker]})
@@ -324,7 +397,7 @@ def plan_and_execute(plan: QueryPlan, run: Run) -> Answer:
                 limit = 3 if len(queries) == 1 else 2
                 if plan.wants_reasons and f.get("fiscal_year") and len(f["fiscal_year"]) > 1:
                     limit = len(f["fiscal_year"])
-                parts += best_sentences(res["results"], sub, limit, must or None)
+                parts += best_sentences(res["results"], sub, limit, must or None, generic=run.s.generic_docs)
             if run.s.generic_docs and not parts:
                 parts += best_table_rows(pool, q)            # user uploads: facts that live only in a table
 
@@ -405,5 +478,11 @@ def answer_question(plan: QueryPlan, conn, s: Settings) -> Answer:
     ans = react(plan, run) if use_react else plan_and_execute(plan, run)
     if s.use_reflection and not ans.answer.startswith("I don't know"):
         ans = reflect(ans, run.evidence, run.computed)
+    if s.generic_docs:
+        # Uploads: an LLM may answer from the document map + retrieved passages (counting, listing, semantic
+        # questions); used only if every citation and figure verifies. Callers decide whether it may run.
+        use_llm = s.use_synthesis and llm.synthesis_enabled()
+        return synthesis.refine_grounded(plan.query, ans, run.passages,
+                                         outline.outline_lines(conn) if use_llm else "", s)
     # Optional: an LLM rewords the verified draft; kept only if every number and citation still checks out.
     return synthesis.refine(plan.query, ans, run.evidence, s)

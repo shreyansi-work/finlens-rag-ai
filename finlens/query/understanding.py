@@ -7,7 +7,7 @@ an LLM version. Each is switchable in Settings so its effect can be measured.
 import re
 from dataclasses import dataclass, field
 
-from finlens import llm
+from finlens import llm, outline
 from finlens.config import Settings
 from finlens.text import COMPANIES, company_name, content_tokens, find_tickers, possessive
 
@@ -45,6 +45,8 @@ class QueryPlan:
     wants_reasons: bool = False
     forward_looking: bool = False
     known_years: list = field(default_factory=list)
+    noun: str = ""                               # uploads: the thing being counted/listed ("milestone")
+    ask_kind: str = ""                           # uploads: "count" | "list"
 
 
 # ---------------------------------------------------------------------------
@@ -192,9 +194,13 @@ def understand(question: str, history: list[dict], s: Settings, known_years: lis
     if s.generic_docs:
         # Uploaded documents: no company/year metadata and no financial tables, so answer from the text only.
         plan.metrics = []
-        plan.route = route(query, []) if s.use_routing else "vector"
-        if plan.route not in ("direct", "summary"):
-            plan.route = "vector"
+        plan.route = "direct" if route(query, []) == "direct" else "vector"
+        if plan.route != "direct" and s.use_routing:
+            plan.ask_kind, plan.noun = outline.enumeration_noun(query)
+            if outline.is_broad(query):
+                plan.route = "outline"                  # "summarize", "key points", "what is this about"
+            elif plan.noun:
+                plan.route = "enumerate"                # "how many milestones", "which phases are there"
         plan.wants_reasons = bool(re.search(r"\b(why|reason|reasons|explain|driver|because)\b", query.lower()))
         return plan
     plan.filters = extract_filters(query, known_years)

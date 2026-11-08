@@ -62,10 +62,14 @@ def groq_ready() -> bool:
     return settings.llm_provider == "groq" and bool(os.environ.get("GROQ_API_KEY")) and not breaker_open()
 
 
+def is_remote() -> bool:
+    """True when prompts would leave this server for a third-party API (Groq). Ollama runs on the same machine."""
+    return settings.llm_provider == "groq"
+
+
 def synthesis_enabled() -> bool:
-    """Should the LLM write the final answer? Groq: needs a key and a closed breaker. Ollama: explicit opt-in."""
-    if not settings.use_synthesis:
-        return False
+    """Is an LLM available to write final answers? Groq: needs a key and a closed breaker. Ollama: must be up.
+    Whether a given request uses it is decided by that request's `use_synthesis` setting (and consent)."""
     return groq_ready() if settings.llm_provider == "groq" else enabled()
 
 

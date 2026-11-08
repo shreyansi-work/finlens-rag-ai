@@ -18,7 +18,8 @@ def _paths(db_path: str) -> tuple[Path, Path]:
 
 
 def build_vectors(conn, s: Settings) -> int:
-    rows = conn.execute("SELECT chunk_id, embed_text FROM chunks WHERE active=1 AND level!='parent'").fetchall()
+    rows = conn.execute(
+        "SELECT chunk_id, embed_text FROM chunks WHERE active=1 AND level NOT IN ('parent', 'toc')").fetchall()
     if not rows:
         return 0
     ids = np.array([r[0] for r in rows])

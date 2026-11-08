@@ -12,6 +12,7 @@ the extension or the client's file name; stored files get server-generated names
 import hashlib
 import io
 import logging
+import os
 import re
 import shutil
 import threading
@@ -23,6 +24,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
+from finlens import llm
 from finlens.config import DATA_DIR, settings
 from finlens.db import connect
 from finlens.ingestion.parser import MAX_DOCX_XML_BYTES, DocumentError
@@ -139,9 +141,13 @@ class Workspace:
         return str(self.path / "ws.db")
 
     def settings(self):
+        # An LLM may answer from the document when it is a hosted one (fast; needs the visitor's consent, see ask()).
+        # A local Ollama model on a CPU takes 1-3 minutes per answer and was measured to be worse than the
+        # deterministic answer, so it is opt-in: FINLENS_WORKSPACE_LLM=1.
+        use_llm = llm.is_remote() or os.getenv("FINLENS_WORKSPACE_LLM") == "1"
         return settings.with_(db_path=self.db_path, generic_docs=True, use_filters=False, use_decomposition=False,
                               use_contextualize=False, use_multi_query=False, use_hyde=False, use_step_back=False,
-                              build_graph=False, llm_agent=False)
+                              build_graph=False, build_summaries=False, llm_agent=False, use_synthesis=use_llm)
 
     def app(self) -> FinLens:
         with self.lock:
@@ -310,9 +316,11 @@ class Manager:
     def ask(self, ws: Workspace, question: str, allow_llm: bool, on_event=None) -> dict:
         if not ws.ready_docs():
             raise UploadError(409, "Upload a document first.")
+        # A local LLM (Ollama) keeps data on this machine, so it needs no consent; a hosted one (Groq) does.
+        may_use_llm = allow_llm or not llm.is_remote()
         with ws.ask_lock:
             return ws.app().ask(question, session_id=f"ws-{ws.id}", on_event=on_event, use_memory=False,
-                                allow_llm=allow_llm, persist_trace=False)
+                                allow_llm=may_use_llm, persist_trace=False)
 
     def page(self, ws: Workspace, doc_id: str, page: int) -> dict | None:
         if doc_id not in ws.docs:

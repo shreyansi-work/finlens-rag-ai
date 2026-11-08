@@ -298,6 +298,7 @@ def test_hosted_llm_is_used_only_with_explicit_opt_in(env, monkeypatch):
     upload(client, "Pump Manual.pdf", PDF)
     monkeypatch.setattr(settings, "use_synthesis", True)
     monkeypatch.setattr(llm, "synthesis_enabled", lambda: True)
+    monkeypatch.setattr(llm, "is_remote", lambda: True)        # a hosted LLM: prompts would leave the server
     sent = []
     monkeypatch.setattr(llm, "complete", lambda prompt, **k: sent.append(prompt) or "")
     ask(client, "How long is the warranty on the Model X pump?", allow_llm=False)

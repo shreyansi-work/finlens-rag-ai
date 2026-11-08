@@ -69,7 +69,22 @@ def _is_heading(line: str) -> bool:
             and not s.endswith((".", ",", ";")) and ":" not in s and not _is_table_row(s))
 
 
-def parse_pdf(path: Path) -> list[Page]:
+# Extra heading shapes recognised for user uploads ("rich" mode): "1. Overview", "2.1 Scope",
+# "Milestone 3: Card and Pocket Money", "Flow A: Schools". The sample corpus is parsed without them.
+STRONG_NUMBERED = re.compile(r"^\d+(\.\d+)*[.)]\s+[A-Z]")
+STRONG_LABELED = re.compile(
+    r"^(Milestone|Phase|Stage|Step|Flow|Part|Chapter|Section|Module|Appendix|Annexure|Annex|Article)\s+"
+    r"[A-Z0-9IVX]{1,4}\s*[:.–-]\s*\S", re.I)
+TOC_LEADER = re.compile(r"\.{4,}\s*\d+\s*$")           # "3. Features ........... 4" in a table of contents
+
+
+def _is_strong_heading(s: str) -> bool:
+    if TOC_LEADER.search(s) or len(s) > 90 or len(s.split()) > 14 or s.endswith((".", ",", ";", ":")):
+        return False
+    return bool(STRONG_NUMBERED.match(s) or STRONG_LABELED.match(s))
+
+
+def parse_pdf(path: Path, rich_headings: bool = False) -> list[Page]:
     reader = PdfReader(str(path))
     raw_pages = []
     for i, page in enumerate(reader.pages, start=1):
@@ -78,9 +93,11 @@ def parse_pdf(path: Path) -> list[Page]:
             text = _ocr_page(path, i) or text
         raw_pages.append(text.splitlines())
 
-    # Lines repeated on most pages are running headers/footers.
+    # Lines repeated on most pages are running headers/footers. In rich mode spacing is collapsed first,
+    # because a footer like "© 2026 ... | 3" and "... | 12" differ only in padding.
     def norm(l):
-        return re.sub(r"\d+", "#", l.strip())
+        s = re.sub(r"\d+", "#", l.strip())
+        return re.sub(r"\s+", " ", s) if rich_headings else s
     counts = Counter(norm(l) for lines in raw_pages for l in set(lines) if l.strip())
     boilerplate = {k for k, v in counts.items() if len(raw_pages) > 1 and v >= max(2, len(raw_pages) * 0.6)}
 
@@ -102,6 +119,12 @@ def parse_pdf(path: Path) -> list[Page]:
 
         for line in lines:
             s = line.strip()
+            if rich_headings and TOC_LEADER.search(s):
+                flush_para()          # a table-of-contents entry: kept for the outline, kept out of search
+                m = re.match(r"^(.*?)\s*\.{4,}\s*(\d+)\s*$", s)
+                if m and m.group(1).strip():
+                    blocks.append(Block("toc", f"{' '.join(m.group(1).split())}\t{m.group(2)}"))
+                continue
             if not s or norm(line) in boilerplate:
                 flush_para()          # blank line ends a paragraph, but not a table
                 continue
@@ -110,8 +133,12 @@ def parse_pdf(path: Path) -> list[Page]:
                 table.append(s)
                 continue
             flush_table()
-            if _is_heading(s) and not para:
-                blocks.append(Block("heading", s))
+            clean = " ".join(s.split())                       # also normalises non-breaking spaces
+            if rich_headings and _is_strong_heading(clean):
+                flush_para()
+                blocks.append(Block("heading", clean))
+            elif _is_heading(s) and not para:
+                blocks.append(Block("heading", clean if rich_headings else s))
             else:
                 para.append(re.sub(r"\s+", " ", s))
         flush_para()
@@ -190,6 +217,6 @@ def parse_docx(path: Path) -> list[Page]:
     return pages
 
 
-def parse_document(path: Path) -> list[Page]:
+def parse_document(path: Path, rich_headings: bool = False) -> list[Page]:
     """PDF or DOCX, chosen by file extension."""
-    return parse_docx(path) if path.suffix.lower() == ".docx" else parse_pdf(path)
+    return parse_docx(path) if path.suffix.lower() == ".docx" else parse_pdf(path, rich_headings)

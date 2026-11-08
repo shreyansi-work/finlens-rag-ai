@@ -60,7 +60,9 @@ def _get_or_create(request: Request, response: Response) -> Workspace:
 def workspace_status(request: Request, response: Response):
     _no_store(response)
     ws = get_manager().get(request.cookies.get(COOKIE))      # read-only: never creates a workspace
-    return {**get_manager().status(ws), "synthesis": llm.synthesis_enabled()}
+    # "synthesis" drives the consent checkbox: it is only needed when prompts would leave the server.
+    return {**get_manager().status(ws), "synthesis": llm.synthesis_enabled() and llm.is_remote(),
+            "llm": llm.synthesis_enabled()}
 
 
 @router.post("/upload", status_code=202)

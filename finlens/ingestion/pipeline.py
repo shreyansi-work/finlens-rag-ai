@@ -61,8 +61,8 @@ def ingest_file(conn, path: Path, s: Settings, meta: dict | None = None) -> str:
         return "skipped"          # same file already ingested under another name
     version = row["version"] + 1 if row else 1
 
-    pages = parse_document(path)
-    sections, tables = sections_from_pages(pages)
+    pages = parse_document(path, rich_headings=generic)
+    sections, tables = sections_from_pages(pages, split_pages=generic)
     if generic and sum(len(sec.text) for sec in sections) < 40:
         raise DocumentError("No readable text found. Scanned or image-only files are not supported.")
     conn.execute("INSERT OR REPLACE INTO documents (doc_id, filename, company, ticker, fiscal_year, quarter, doc_type,"
@@ -73,7 +73,15 @@ def ingest_file(conn, path: Path, s: Settings, meta: dict | None = None) -> str:
 
     chunks = build_chunks(doc_id, meta, sections, tables, s)
     upsert_chunks(conn, doc_id, meta, chunks, version)
-    if not generic:
+    if generic:
+        toc = "\n".join(b.text for p in pages for b in p.blocks if b.kind == "toc")
+        if toc:      # level 'toc' is never searched; the outline reads it to show the real top-level sections
+            conn.execute(
+                "INSERT INTO chunks (doc_id, level, company, ticker, fiscal_year, quarter, doc_type, section, page,"
+                " text, embed_text, chunk_hash, version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (doc_id, "toc", meta["company"], meta["ticker"], None, None, meta["doc_type"], "Table of Contents",
+                 1, toc, toc, sha("toc" + toc), version))
+    else:
         store_financials(conn, doc_id, meta, tables)
         if s.build_graph:
             store_graph(conn, doc_id, meta, pages)
@@ -93,7 +101,7 @@ def contextual_header(meta: dict, section: str, text: str, s: Settings) -> str:
     else:
         period = " ".join(x for x in (meta["quarter"], meta["fiscal_year"]) if x)
         base = f"This chunk is from {meta['company']} ({meta['ticker']}) {period} {DOC_TYPE_LABEL.get(meta['doc_type'], '')}, section {section}."
-    if llm.enabled():
+    if llm.enabled() and not meta.get("generic"):    # uploads ingest deterministically: no LLM call per chunk
         extra = llm.complete(f"In one short sentence, say what this passage is about.\n\n{text[:1500]}")
         return f"{base} {extra}"
     return base

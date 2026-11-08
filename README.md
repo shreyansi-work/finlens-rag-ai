@@ -111,6 +111,24 @@ same page citations and "I don't know" behaviour as the sample filings.
   the SQL, calculator and graph tools do not apply; answers come from hybrid search over the text (and table rows
   are returned as `Column: value` pairs). DOCX has no fixed pages, so a citation points at an approximate
   "section" of about 450 words. Scanned (image-only) PDFs are rejected because no OCR engine is installed.
+- **Structure-aware answers (no LLM needed).** Sentence retrieval cannot answer "summarize this", "what are the
+  key points" or "how many milestones", because those are about the document's *shape*. For uploads the parser
+  therefore recognises numbered and labelled headings (`1. Overview`, `Milestone 3: ...`), keeps the table of
+  contents (out of search results) and answers these from the outline: a summary is the opening paragraph plus
+  the top-level sections with their pages, and a count lists every labelled item, e.g. *"The document describes 5
+  milestones: Milestone 1: Discovery and Architecture [p.13]; ..."*. Sections never span a page, so a citation
+  points at the page that really holds the text. Found by uploading a real 22-page proposal, where an earlier
+  version cited `p.12` for text on pages 13-21 and answered "key points" with "I don't know".
+- **Honest abstention.** For uploads a sentence must match at least two of the question's content words (its
+  section heading counts as context) before it is used, so "Who is the CEO of Google?" does not get the cover
+  page's "CEO of Acme". The cost is that questions phrased with different words than the document ("when does the
+  project *start*" vs "tentative *commencement* date") abstain instead of guessing. A language model closes that gap.
+- **LLM-written answers for uploads (optional).** With the free Groq API and the visitor's opt-in, an LLM answers
+  from a map of the document's sections plus the retrieved passages and may count, list and rephrase. The answer is
+  used only if every citation is one it was given and every number or number-word appears in the evidence; it can
+  never replace an exact count, and a refusal never replaces a real answer. A **local Ollama 3B model was measured
+  and is off by default**: on a laptop CPU it took 50-190 s per answer and twice replaced a correct cited answer
+  with "I don't know", so it is opt-in (`FINLENS_WORKSPACE_LLM=1`). Uploads are always ingested without an LLM.
 - **API:** `GET /api/workspace`, `POST /api/workspace/upload` (raw body + `X-Filename`), `DELETE
   /api/workspace/docs/{id}`, `DELETE /api/workspace`, `POST /api/workspace/ask`, `GET /api/workspace/ask/stream`,
   `GET /api/workspace/page`, `GET /api/workspace/file/{id}`. Covered by `tests/test_workspace.py` (isolation,
@@ -340,9 +358,11 @@ These keep the project small and runnable anywhere; each is one module to swap.
 - **Heuristic faithfulness**, not validated against human or LLM judgement.
 - **LLM synthesis (Groq) is unbenchmarked.** It is unit-tested with a mocked API and cannot change facts
   (verification falls back to the deterministic answer), but its live acceptance rate and latency are unmeasured.
-- **Uploaded documents are a best-effort feature.** Answers are extractive (relevant sentences and table
-  rows), there is no follow-up memory, the shared index is fitted per workspace with a lightweight embedder,
-  and answer quality on arbitrary documents has not been evaluated. A free host's small CPU and memory are why
+- **Uploaded documents are a best-effort feature.** Without an LLM, answers are extractive (relevant sentences,
+  table rows, and the outline for structural questions), so semantic questions ("which modules should I build",
+  "when does it start") are weak or abstain; there is no follow-up memory; the index is fitted per workspace with
+  a lightweight embedder. It was checked on one real 22-page proposal and a synthetic fixture, not on a
+  benchmark, so answer quality on arbitrary documents is unmeasured. A free host's small CPU and memory are why
   the size and page limits exist. Uploads vanish when the service restarts or sleeps; with a hosted LLM they are
   only sent to it if the visitor opts in.
 
