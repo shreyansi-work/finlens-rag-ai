@@ -1,0 +1,27 @@
+{"id": "h01", "question": "How much top line did Aravali report for FY24?", "type": "table_numeric", "numbers": [153670], "gold": [{"doc": "ARVL_FY24_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h02", "question": "Narmada Industries EPS for FY25?", "type": "table_numeric", "numbers": [103.0], "gold": [{"doc": "NARMIND_FY25_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h03", "question": "what was aravali infotech's net profit in fy25", "type": "table_numeric", "numbers": [26713], "gold": [{"doc": "ARVL_FY25_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h04", "question": "How many people did Aravali employ in FY25?", "type": "table_numeric", "numbers": [323578], "gold": [{"doc": "ARVL_FY25_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h05", "question": "What was Ganga Commercial Bank's gross NPA ratio in FY25?", "type": "table_numeric", "numbers": [1.33], "gold": [{"doc": "GANGABK_FY25_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h06", "question": "Narmada's EBITDA margin in FY24?", "type": "table_numeric", "numbers": [18.3], "gold": [{"doc": "NARMIND_FY24_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h07", "question": "What was Ganga bank's total income for FY24?", "type": "table_numeric", "numbers": [283649], "gold": [{"doc": "GANGABK_FY24_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h08", "question": "Earnings per share of Sahyadri Softworks in FY24", "type": "table_numeric", "numbers": [20.9], "gold": [{"doc": "SAHSW_FY24_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h09", "question": "What was the staff attrition at Nilgiri in FY25?", "type": "table_numeric", "numbers": [13.3], "gold": [{"doc": "NILCS_FY25_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h10", "question": "How big was Sahyadri's workforce in FY25?", "type": "table_numeric", "numbers": [233346], "gold": [{"doc": "SAHSW_FY25_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h11", "question": "Which earned more profit in FY25, Aravali or Narmada, and by how much?", "type": "comparison", "numbers": [26713, 69648, 42935], "gold": [{"doc": "ARVL_FY25_annual_report", "page": 3}, {"doc": "NARMIND_FY25_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h12", "question": "Is Nilgiri's operating margin in FY24 above Sahyadri's? Give both.", "type": "comparison", "numbers": [24.6, 16.1], "gold": [{"doc": "NILCS_FY24_annual_report", "page": 3}, {"doc": "SAHSW_FY24_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h13", "question": "By what percent did Aravali's revenue grow from FY24 to FY25?", "type": "multi_hop", "numbers": [6.07], "gold": [{"doc": "ARVL_FY24_annual_report", "page": 3}, {"doc": "ARVL_FY25_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h14", "question": "Did Aravali's attrition go up or down between FY24 and FY25?", "type": "temporal", "numbers": [12.9, 14.1], "gold": [{"doc": "ARVL_FY24_annual_report", "page": 3}, {"doc": "ARVL_FY25_annual_report", "page": 3}], "answer": "", "source": "holdout"}
+{"id": "h15", "question": "What was Nilgiri's revenue in FY19?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h16", "question": "What is the headcount of Ganga Commercial Bank in FY25?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h17", "question": "What was Narmada's gross NPA in FY24?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h18", "question": "What is Infosys's revenue for FY25?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h19", "question": "Will Sahyadri's operating margin improve in FY27?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h20", "question": "What was Aravali's employee satisfaction score in FY25?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h21", "question": "How many data centers does Nilgiri own in Germany?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h22", "question": "What was the net interest margin of Aravali Infotech?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h23", "question": "What is the CEO's age at Narmada Industries?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h24", "question": "What was Sahyadri's revenue in FY22?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h25", "question": "What dividend per share did Ganga Commercial Bank pay in FY25?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h26", "question": "How does Aravali's revenue compare with Wipro's in FY25?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
+{"id": "h27", "question": "What was Nilgiri's R&D spend in FY24?", "type": "unanswerable", "numbers": [], "gold": [], "answer": "", "source": "holdout"}
