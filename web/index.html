@@ -3,115 +3,181 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light">
+<meta name="color-scheme" content="light dark">
 <title>FinLens</title>
 <style>
   :root {
-    color-scheme: light;
-    --bg: #f6f7f9; --panel: #ffffff; --ink: #14181f; --muted: #5d6675; --line: #e3e6eb;
-    --accent: #0f6e5c; --accent-soft: #e3f2ee; --warn: #9a5b00; --warn-soft: #fff4e0;
-    --bad: #a3322b; --chip: #eef1f5; --hl: #fff1a8;
+    --bg: #f4f6f8; --panel: #ffffff; --raised: #ffffff; --ink: #0f1720; --muted: #5b6678; --line: #e3e7ed;
+    --accent: #0f6e5c; --accent-ink: #ffffff; --accent-soft: #e3f3ef; --accent-line: #bfe3d9;
+    --warn: #8a5300; --warn-soft: #fff5e1; --bad: #a3322b; --bad-soft: #fdecea;
+    --chip: #eef1f5; --hl: #ffe98a; --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .06);
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --panel: #141a22; --raised: #1a212b; --ink: #e6edf3; --muted: #93a0b2; --line: #263140;
+      --accent: #3dbb9d; --accent-ink: #06231c; --accent-soft: #112f28; --accent-line: #1d5648;
+      --warn: #e3a857; --warn-soft: #2d2412; --bad: #ff8a80; --bad-soft: #3a1f1d;
+      --chip: #1c2430; --hl: #6b5800; --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+    }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
-  header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .logo { font-weight: 700; font-size: 18px; letter-spacing: -0.2px; }
-  .logo span { color: var(--accent); }
-  .tag { color: var(--muted); }
-  .ghost { margin-left: auto; border: 1px solid var(--line); background: transparent; color: var(--ink); border-radius: 99px; padding: 4px 12px; font: inherit; font-size: 12px; cursor: pointer; }
-  .ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .badge { font-size: 12px; padding: 3px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
-  main { display: grid; grid-template-columns: 250px 1fr 380px; height: calc(100vh - 53px); }
-  aside, section { overflow-y: auto; }
-  aside.left { border-right: 1px solid var(--line); padding: 16px; background: var(--panel); }
-  aside.right { border-left: 1px solid var(--line); padding: 16px; background: var(--panel); }
-  h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 8px; }
-  h3:first-child { margin-top: 0; }
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat { background: var(--chip); border-radius: 8px; padding: 8px 10px; }
-  .stat b { display: block; font-size: 18px; }
-  .stat small { color: var(--muted); }
-  .company { margin-bottom: 8px; }
-  .company b { font-size: 13px; }
-  .docs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-  .docs a { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--chip); color: var(--muted); text-decoration: none; }
-  .docs a:hover { color: var(--accent); }
-  .sample { display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-size: 13px; }
-  .sample:hover { border-color: var(--accent); }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
   [hidden] { display: none !important; }
-  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; background: var(--chip); border-radius: 10px; margin-bottom: 16px; }
-  .seg button { border: 0; background: transparent; padding: 7px 6px; border-radius: 8px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
-  .seg button.on { background: var(--panel); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-  .drop { display: block; text-align: center; padding: 14px 10px; border: 1.5px dashed var(--line); border-radius: 10px; cursor: pointer; background: var(--bg); }
+
+  /* ---------- header ---------- */
+  header { display: flex; align-items: center; gap: 14px; height: 60px; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand svg { flex: none; }
+  .logo { font-weight: 750; font-size: 19px; letter-spacing: -.3px; }
+  .logo span { color: var(--accent); }
+  .tag { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 12px; border-left: 1px solid var(--line); }
+  .head-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .badge { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-line); white-space: nowrap; }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .ghost { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 6px 14px; font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color .12s, color .12s; }
+  .ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ---------- layout ---------- */
+  main { display: grid; grid-template-columns: 284px minmax(0, 1fr) 400px; height: calc(100vh - 60px); height: calc(100dvh - 60px); }
+  aside, section { overflow-y: auto; }
+  aside.left { border-right: 1px solid var(--line); padding: 18px 16px 24px; background: var(--panel); }
+  aside.right { border-left: 1px solid var(--line); padding: 18px 16px 24px; background: var(--panel); }
+  h3 { font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 22px 0 10px; }
+  h3:first-child { margin-top: 0; }
+
+  /* ---------- segmented tabs ---------- */
+  .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; padding: 3px; background: var(--chip); border-radius: 11px; margin-bottom: 18px; }
+  .seg button { border: 0; background: transparent; padding: 8px 8px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; transition: background .12s, color .12s; }
+  .seg button:hover { color: var(--ink); }
+  .seg button.on { background: var(--raised); color: var(--accent); box-shadow: var(--shadow); }
+
+  /* ---------- sidebar content ---------- */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; }
+  .stat b { display: block; font-size: 19px; font-weight: 700; letter-spacing: -.3px; }
+  .stat small { color: var(--muted); font-size: 12px; }
+  .company { margin-bottom: 12px; }
+  .company b { font-size: 13px; font-weight: 650; }
+  .docs { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .docs a { font-size: 11.5px; padding: 2px 9px; border-radius: 99px; background: var(--chip); color: var(--muted); text-decoration: none; transition: color .12s, background .12s; }
+  .docs a:hover { color: var(--accent); background: var(--accent-soft); }
+  .drop { display: block; text-align: center; padding: 18px 12px; border: 1.5px dashed var(--line); border-radius: 12px; cursor: pointer; background: var(--bg); transition: border-color .12s, background .12s; }
   .drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
-  .drop b { display: block; font-size: 13px; color: var(--accent); }
-  .drop small { color: var(--muted); }
-  .doc { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 7px 8px; margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; }
-  .doc .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .doc .st { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+  .drop b { display: block; font-size: 14px; color: var(--accent); margin-bottom: 2px; }
+  .drop small { color: var(--muted); font-size: 12px; }
+  .doc { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 8px; padding: 9px 10px; margin-top: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); font-size: 13px; }
+  .doc .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .doc .st { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 99px; background: var(--chip); color: var(--muted); white-space: nowrap; }
   .doc .st.ready { background: var(--accent-soft); color: var(--accent); }
-  .doc .st.error { background: #fdeceb; color: var(--bad); }
-  .doc button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+  .doc .st.error { background: var(--bad-soft); color: var(--bad); }
+  .doc button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; line-height: 1; padding: 0 3px; border-radius: 6px; }
   .doc button:hover { color: var(--bad); }
-  .doc .err { flex-basis: 100%; color: var(--bad); font-size: 11.5px; }
-  .note { color: var(--muted); font-size: 12px; margin: 10px 0; }
+  .doc .err { flex-basis: 100%; color: var(--bad); font-size: 12px; }
+  .note { color: var(--muted); font-size: 12.5px; margin: 12px 0; line-height: 1.5; }
   .note.err { color: var(--bad); }
-  .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; margin: 10px 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
-  .consent small { display: block; color: var(--muted); }
-  .linkbtn { border: 0; background: transparent; color: var(--bad); font: inherit; font-size: 12px; cursor: pointer; padding: 0; text-decoration: underline; }
-  section.chat { display: flex; flex-direction: column; }
-  #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
-  .empty { margin: auto; text-align: center; color: var(--muted); max-width: 420px; }
-  .empty h2 { color: var(--ink); margin-bottom: 6px; }
-  .q { align-self: flex-end; background: var(--accent); color: #fff; padding: 10px 14px; border-radius: 14px 14px 4px 14px; max-width: 75%; }
-  .a { align-self: flex-start; background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; border-radius: 14px 14px 14px 4px; max-width: 88%; }
+  .consent { display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px; margin: 12px 0; padding: 10px 11px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--bg); line-height: 1.45; }
+  .consent input { margin-top: 3px; accent-color: var(--accent); }
+  .consent small { display: block; color: var(--muted); margin-top: 2px; }
+  .linkbtn { border: 0; background: transparent; color: var(--bad); font-size: 12.5px; cursor: pointer; padding: 0; text-decoration: underline; }
+
+  /* ---------- chat ---------- */
+  section.chat { display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+  #messages { flex: 1; overflow-y: auto; padding: 28px max(20px, calc((100% - 780px) / 2)); display: flex; flex-direction: column; gap: 18px; scroll-behavior: smooth; }
+  .empty { margin: auto; text-align: center; width: 100%; max-width: 640px; padding: 12px 0 24px; }
+  .hero-mark { display: inline-flex; margin-bottom: 14px; }
+  .empty h2 { margin: 0 0 8px; font-size: 26px; letter-spacing: -.5px; }
+  .empty p { margin: 0 auto 22px; max-width: 520px; color: var(--muted); }
+  .suggest-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; text-align: left; }
+  .suggest { border: 1px solid var(--line); background: var(--raised); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; line-height: 1.45; cursor: pointer; text-align: left; box-shadow: var(--shadow); transition: border-color .12s, transform .12s; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .suggest:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .q { align-self: flex-end; background: var(--accent); color: var(--accent-ink); padding: 10px 16px; border-radius: 18px 18px 4px 18px; max-width: min(560px, 88%); box-shadow: var(--shadow); overflow-wrap: anywhere; }
+  .a { align-self: stretch; background: var(--raised); border: 1px solid var(--line); padding: 16px 18px; border-radius: var(--radius); box-shadow: var(--shadow); line-height: 1.65; overflow-wrap: anywhere; }
   .a.abstain { border-color: var(--warn); background: var(--warn-soft); }
-  .status { color: var(--muted); font-size: 13px; }
-  .status div::before { content: "\2713  "; color: var(--accent); }
-  .status div:last-child::before { content: "\25CB  "; }
-  .cite { display: inline-block; font-size: 11px; padding: 0 6px; margin: 0 2px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); cursor: pointer; border: 0; font-family: inherit; }
-  .meta { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 6px 8px; font-size: 12px; color: var(--muted); align-items: center; }
+  .status { color: var(--muted); font-size: 13.5px; display: grid; gap: 5px; }
+  .status div { display: flex; align-items: center; gap: 9px; }
+  .status div::before { content: "\2713"; color: var(--accent); font-weight: 700; width: 14px; text-align: center; }
+  .status div:last-child::before { content: ""; width: 13px; height: 13px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .cite { display: inline-block; font-size: 11.5px; font-weight: 500; padding: 1px 9px; margin: 0 2px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); cursor: pointer; border: 1px solid var(--accent-line); line-height: 1.5; vertical-align: 1px; transition: background .12s; }
+  .cite:hover { background: var(--accent-line); }
+  .meta { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 7px 8px; font-size: 12px; color: var(--muted); align-items: center; line-height: 1.4; }
   .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 99px; font-size: 12px; line-height: 18px; font-weight: 500; background: var(--chip); color: var(--muted); border: 1px solid transparent; white-space: nowrap; }
   .pill.conf::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
   .pill.conf b { font-weight: 600; text-transform: capitalize; }
   .pill.high { background: var(--accent-soft); color: var(--accent); }
   .pill.medium { background: var(--warn-soft); color: var(--warn); }
-  .pill.low { background: #fdeceb; color: var(--bad); }
+  .pill.low { background: var(--bad-soft); color: var(--bad); }
   .pill.route { background: transparent; border-color: var(--line); color: var(--ink); }
   .pill.route i { font-style: normal; color: var(--muted); font-weight: 400; }
   .pill.tool { background: var(--chip); color: var(--ink); font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 11px; }
   .pill.tool::before { content: "\2699"; color: var(--muted); font-family: system-ui, sans-serif; }
   .lat { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
-  .missing { margin-top: 8px; font-size: 12px; color: var(--warn); }
+  .missing { margin-top: 10px; font-size: 12.5px; color: var(--warn); }
   .fb { margin-left: auto; display: flex; gap: 6px; }
-  .fb button { width: 30px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: var(--panel); border-radius: 8px; cursor: pointer; font-size: 13px; line-height: 1; filter: grayscale(1); opacity: .7; transition: all .12s; }
-  .fb button:hover { opacity: 1; filter: none; border-color: var(--accent); background: var(--accent-soft); }
-  .fb button.on { opacity: 1; filter: none; border-color: var(--accent); background: var(--accent-soft); }
-  form { display: flex; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--line); background: var(--panel); }
-  input[type=text] { flex: 1; padding: 11px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; }
-  input[type=text]:focus { outline: 2px solid var(--accent); border-color: transparent; }
-  form button { padding: 0 18px; border: 0; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
-  .viewer .src { font-size: 12px; color: var(--muted); margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; }
-  .viewer .src a { color: var(--accent); }
-  .page { font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; white-space: pre-wrap; }
-  .page h4 { margin: 0 0 4px; font-size: 12px; color: var(--muted); }
-  mark { background: var(--hl); color: inherit; border-radius: 3px; }
-  .trace { font-size: 12px; }
-  .trace .row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
-  .trace .row span:first-child { color: var(--muted); }
-  .trace code { font-size: 11px; word-break: break-word; }
-  .hint { color: var(--muted); font-size: 13px; }
-  @media (max-width: 1100px) { main { grid-template-columns: 1fr; height: auto; } aside.left { border-right: 0; border-bottom: 1px solid var(--line); } #panel-corpus { display: none; } aside.right { border-left: 0; border-top: 1px solid var(--line); } #messages { min-height: 60vh; } }
-  @media (max-width: 600px) { .tag { display: none; } }
-  @media (max-width: 600px) { #messages, form { padding: 12px 16px; } .q, .a { max-width: 100%; } }
+  .fb button { width: 32px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); background: var(--raised); border-radius: 8px; cursor: pointer; font-size: 13px; line-height: 1; filter: grayscale(1); opacity: .7; transition: all .12s; }
+  .fb button:hover, .fb button.on { opacity: 1; filter: none; border-color: var(--accent); background: var(--accent-soft); }
+
+  /* ---------- composer ---------- */
+  form { padding: 10px max(20px, calc((100% - 780px) / 2)) 14px; background: linear-gradient(to top, var(--bg) 70%, transparent); }
+  .composer { display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 16px; background: var(--raised); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow); transition: border-color .12s; }
+  .composer:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  input[type=text] { flex: 1; min-width: 0; border: 0; background: transparent; padding: 9px 0; outline: none; font-size: 15px; }
+  input[type=text]::placeholder { color: var(--muted); }
+  .send { flex: none; display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 14px; padding: 9px 18px 9px 20px; cursor: pointer; transition: filter .12s; }
+  .send:hover { filter: brightness(1.08); }
+  .foot { margin: 8px 0 0; text-align: center; color: var(--muted); font-size: 11.5px; }
+
+  /* ---------- right panel ---------- */
+  .viewer .src { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 500; }
+  .viewer .src a { color: var(--accent); text-decoration: none; font-weight: 600; white-space: nowrap; }
+  .viewer .src a:hover { text-decoration: underline; }
+  .page { font-size: 13.5px; line-height: 1.65; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  mark { background: var(--hl); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .trace { font-size: 12.5px; }
+  .trace .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .trace .row:last-child { border-bottom: 0; }
+  .trace .row span:first-child { color: var(--muted); flex: none; }
+  .trace code { font-size: 12px; word-break: break-word; text-align: right; font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  .hint { color: var(--muted); font-size: 13.5px; padding: 14px; border: 1px dashed var(--line); border-radius: 12px; margin: 0; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 1180px) { main { grid-template-columns: 260px minmax(0, 1fr) 340px; } }
+  @media (max-width: 1000px) {
+    main { grid-template-columns: 1fr; height: auto; }
+    aside.left { border-right: 0; border-bottom: 1px solid var(--line); }
+    #panel-corpus { display: none; }
+    aside.right { border-left: 0; border-top: 1px solid var(--line); }
+    #messages { min-height: 60vh; }
+  }
+  @media (max-width: 640px) {
+    header { padding: 0 14px; gap: 8px; }
+    .tag { display: none; }
+    .badge { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+    #messages { padding: 18px 14px; }
+    form { padding: 8px 14px 12px; }
+    .suggest-grid { grid-template-columns: 1fr; }
+    .q { max-width: 92%; }
+    .send span { display: none; }
+    .send { padding: 9px 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 </style>
 </head>
 <body>
 <header>
-  <div class="logo">Fin<span>Lens</span></div>
-  <div class="tag">Agentic RAG research analyst for Indian listed companies</div>
-  <button class="ghost" id="newchat" type="button">New chat</button>
-  <div class="badge" id="mode">loading</div>
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--accent)"/><circle cx="14" cy="14" r="6.6" fill="none" stroke="var(--accent-ink)" stroke-width="2.4"/><path d="M19.2 19.2l6 6" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round"/><path d="M11.2 16.2v-3M14 16.2v-5.4M16.8 16.2v-2.4" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round"/></svg>
+    <div class="logo">Fin<span>Lens</span></div>
+    <div class="tag">Research analyst for company filings</div>
+  </div>
+  <div class="head-actions">
+    <div class="badge" id="mode">loading</div>
+    <button class="ghost" id="newchat" type="button">New chat</button>
+  </div>
 </header>
 <main>
   <aside class="left">
@@ -122,8 +188,6 @@
     <div id="panel-corpus">
       <h3>Index</h3>
       <div class="stats" id="stats"></div>
-      <h3>Try asking</h3>
-      <div id="samples"></div>
       <h3>Corpus</h3>
       <div id="corpus"></div>
     </div>
@@ -141,28 +205,26 @@
         <input type="checkbox" id="consent">
         <span>Let a free hosted LLM (Groq) answer from my documents<small>Sends my question, the section headings and short excerpts of my documents to Groq, a third-party API. Off by default.</small></span>
       </label>
-      <h3>Try asking</h3>
-      <div id="mysamples"></div>
       <p class="note"><button type="button" class="linkbtn" id="wipe">Delete all my documents</button></p>
     </div>
   </aside>
   <section class="chat">
-    <div id="messages">
-      <div class="empty" id="empty">
-        <h2>Ask about the filings</h2>
-        <p>Answers are grounded in the documents with page citations. Numbers come from SQL and the calculator, and FinLens says "I don't know" when the evidence isn't there.</p>
+    <div id="messages"></div>
+    <form id="form" autocomplete="off">
+      <div class="composer">
+        <input type="text" id="q" placeholder="e.g. Compare Nilgiri and Sahyadri operating margins for FY25" autocomplete="off" aria-label="Your question">
+        <button type="submit" class="send" aria-label="Ask"><span>Ask</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       </div>
-    </div>
-    <form id="form">
-      <input type="text" id="q" placeholder="e.g. Compare Nilgiri and Sahyadri operating margins for FY25" autocomplete="off">
-      <button>Ask</button>
+      <p class="foot">Every answer cites its source page. Check it before relying on a number.</p>
     </form>
   </section>
   <aside class="right">
-    <h3>Evidence</h3>
-    <div class="viewer" id="viewer"><p class="hint">Click a citation to see the source page with the cited passage highlighted.</p></div>
-    <h3>Trace</h3>
-    <div class="trace" id="trace"><p class="hint">Route, rewritten query, tool calls, latency and cost for the last answer.</p></div>
+    <div class="seg" role="tablist" aria-label="Details">
+      <button type="button" id="rt-evidence" class="on" role="tab">Evidence</button>
+      <button type="button" id="rt-trace" role="tab">Trace</button>
+    </div>
+    <div id="pane-evidence"><div class="viewer" id="viewer"><p class="hint">Click a citation to see the source page with the cited passage highlighted.</p></div></div>
+    <div id="pane-trace" hidden><div class="trace" id="trace"><p class="hint">Route, rewritten query, tool calls, latency and cost for the last answer.</p></div></div>
   </aside>
 </main>
 <script>
@@ -174,14 +236,24 @@ const SAMPLES = [
   "What is Narmada's current share price and its P/E based on the latest reported EPS?",
   "What was Aravali's revenue in FY21?",
 ];
+const SAMPLES_MINE = ["Summarize this document.", "What are the key points?", "How many sections or phases are there?", "What risks or concerns are mentioned?"];
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
 const SESSION_KEY = "finlens.session";
 const HISTORY_KEY = "finlens.history";
-const EMPTY_HTML = `<div class="empty" id="empty">
-        <h2>Ask about the filings</h2>
-        <p>Answers are grounded in the documents with page citations. Numbers come from SQL and the calculator, and FinLens says "I don't know" when the evidence isn't there.</p>
-      </div>`;
+const MARK = `<svg width="46" height="46" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="var(--accent)"/><circle cx="14" cy="14" r="6.6" fill="none" stroke="var(--accent-ink)" stroke-width="2.4"/><path d="M19.2 19.2l6 6" stroke="var(--accent-ink)" stroke-width="2.6" stroke-linecap="round"/><path d="M11.2 16.2v-3M14 16.2v-5.4M16.8 16.2v-2.4" stroke="var(--accent-ink)" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+const emptyState = (title, text, questions) => `<div class="empty" id="empty">
+  <div class="hero-mark">${MARK}</div>
+  <h2>${title}</h2>
+  <p>${text}</p>
+  <div class="suggest-grid">${questions.map((s) => `<button type="button" class="suggest" data-q="${esc(s)}">${esc(s)}</button>`).join("")}</div>
+</div>`;
+const EMPTY_HTML = emptyState("Ask about the filings",
+  "Answers are grounded in the documents with page citations. Numbers come from SQL and the calculator, and FinLens says \"I don't know\" when the evidence isn't there.",
+  SAMPLES.slice(0, 4));
+const EMPTY_MINE = emptyState("Ask about your own documents",
+  "Upload a PDF or DOCX in the My documents panel, then ask a question. Answers quote your document with citations, and FinLens says \"I don't know\" when it isn't there.",
+  SAMPLES_MINE);
 
 function freshSession() {
   return "web-" + Math.random().toString(36).slice(2, 8);
@@ -208,8 +280,6 @@ async function loadSidebar() {
     : `Ollama · ${info.model} (free, local)`;
   $("stats").innerHTML = [["documents", "Documents"], ["chunks", "Chunks"], ["financial_rows", "SQL rows"], ["graph_edges", "Graph edges"]]
     .map(([k, l]) => `<div class="stat"><b>${info[k]}</b><small>${l}</small></div>`).join("");
-  $("samples").innerHTML = SAMPLES.map((s) => `<button class="sample">${esc(s)}</button>`).join("");
-  document.querySelectorAll(".sample").forEach((b) => b.onclick = () => ask(b.textContent));
   const docs = await (await fetch("/api/documents")).json();
   const by = {};
   docs.forEach((d) => (by[d.company] ||= []).push(d));
@@ -235,7 +305,15 @@ function renderAnswer(text) {
   return parts.join("");
 }
 
+function showRight(which) {
+  $("rt-evidence").classList.toggle("on", which === "evidence");
+  $("rt-trace").classList.toggle("on", which === "trace");
+  $("pane-evidence").hidden = which !== "evidence";
+  $("pane-trace").hidden = which !== "trace";
+}
+
 async function showCitation(doc, page, sentence) {
+  showRight("evidence");
   const mine = scope === "mine";
   const res = await fetch(mine ? `/api/workspace/page?doc=${encodeURIComponent(doc)}&page=${page}` : `/api/page?doc=${doc}&page=${page}`);
   if (!res.ok) { $("viewer").innerHTML = `<p class="hint">That document is no longer available.</p>`; return; }
@@ -262,8 +340,8 @@ async function showCitation(doc, page, sentence) {
   }).join("\n\n") || "<em>No text on this page.</em>";
   const d = myDocs[doc];
   const link = mine
-    ? (d && d.kind === "pdf" ? `<a href="/api/workspace/file/${encodeURIComponent(doc)}#page=${page}" target="_blank" rel="noopener">Open PDF</a>` : "")
-    : `<a href="/files/${doc}.pdf#page=${page}" target="_blank">Open PDF</a>`;
+    ? (d && d.kind === "pdf" ? `<a href="/api/workspace/file/${encodeURIComponent(doc)}#page=${page}" target="_blank" rel="noopener">Open PDF &rarr;</a>` : "")
+    : `<a href="/files/${doc}.pdf#page=${page}" target="_blank">Open PDF &rarr;</a>`;
   const unit = mine && d && d.kind === "docx" ? "section" : "page";   // Word has no fixed pages: about 450 words each
   $("viewer").innerHTML = `<div class="src"><span>${esc(docLabel(doc))} · ${unit} ${page}</span>${link}</div><div class="page">${body}</div>`;
 }
@@ -338,10 +416,6 @@ function restoreHistory() {
 
 const VIEWER_HINT = `<p class="hint">Click a citation to see the source page with the cited passage highlighted.</p>`;
 const TRACE_HINT = `<p class="hint">Route, rewritten query, tool calls, latency and cost for the last answer.</p>`;
-const EMPTY_MINE = `<div class="empty" id="empty">
-        <h2>Ask about your own documents</h2>
-        <p>Upload a PDF or DOCX in the My documents panel, then ask a question. Answers quote your document with citations, and FinLens says "I don't know" when it isn't there.</p>
-      </div>`;
 
 function resetChat() {
   if (scope === "corpus") session = freshSession();
@@ -351,6 +425,7 @@ function resetChat() {
   $("messages").innerHTML = scope === "mine" ? EMPTY_MINE : EMPTY_HTML;
   $("viewer").innerHTML = VIEWER_HINT;
   $("trace").innerHTML = TRACE_HINT;
+  showRight("evidence");
 }
 
 function ask(question) {
@@ -433,7 +508,6 @@ async function streamPost(url, payload, on) {
 }
 
 // ---------------------------------------------------------------- private upload workspace
-const SAMPLES_MINE = ["Summarize this document.", "What are the key points?", "What risks or concerns are mentioned?"];
 let wsTimer = null;
 
 function setUpMsg(text, isError = false) {
@@ -463,6 +537,7 @@ async function loadWorkspace() {
     return;
   }
   myDocs = Object.fromEntries(data.docs.map((d) => [d.doc_id, d]));
+  if (data.docs.some((d) => d.status === "ready") && $("upmsg").textContent.startsWith("Upload a document and wait")) setUpMsg("");
   $("limits").textContent = `Click or drop a file. Up to ${data.limits.max_files} files, ${data.limits.max_mb} MB each, ${data.limits.max_pdf_pages} PDF pages.`;
   $("ttl").textContent = data.limits.ttl_hours;
   $("consent-row").hidden = !data.synthesis;
@@ -508,12 +583,19 @@ function setScope(next) {
   $("messages").innerHTML = scope === "mine" ? EMPTY_MINE : EMPTY_HTML;
   $("viewer").innerHTML = VIEWER_HINT;
   $("trace").innerHTML = TRACE_HINT;
+  showRight("evidence");
   restoreHistory();
   if (scope === "mine") loadWorkspace();
 }
 
 $("tab-corpus").onclick = () => scope !== "corpus" && setScope("corpus");
 $("tab-mine").onclick = () => scope !== "mine" && setScope("mine");
+$("rt-evidence").onclick = () => showRight("evidence");
+$("rt-trace").onclick = () => showRight("trace");
+$("messages").addEventListener("click", (e) => {
+  const card = e.target.closest(".suggest");
+  if (card) ask(card.dataset.q);
+});
 $("file").onchange = async (e) => {
   for (const f of e.target.files) await uploadFile(f);
   e.target.value = "";
@@ -531,12 +613,11 @@ $("wipe").onclick = async () => {
   $("trace").innerHTML = TRACE_HINT;
   loadWorkspace();
 };
-$("mysamples").innerHTML = SAMPLES_MINE.map((s) => `<button class="sample">${esc(s)}</button>`).join("");
-$("mysamples").querySelectorAll(".sample").forEach((b) => b.onclick = () => ask(b.textContent));
 
 $("form").onsubmit = (e) => { e.preventDefault(); ask($("q").value); $("q").value = ""; };
 $("newchat").onclick = resetChat;
 persist();
+$("messages").innerHTML = EMPTY_HTML;
 restoreHistory();
 loadSidebar();
 </script>
