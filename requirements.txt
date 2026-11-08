@@ -1,0 +1,13 @@
+# Runtime dependencies, pinned to the versions the test suite and eval were run against.
+numpy==2.5.4
+pypdf==7.0.0
+fastapi==0.162.1
+uvicorn==0.54.0
+pydantic==2.14.3
+# Sample corpus generator (scripts/make_sample_data.py)
+fpdf2==2.9.0
+# The default LLM is a free local model via Ollama (no Python package needed).
+# The anthropic package is not used. This project does not call the Claude API.
+# Optional upgrades (not installed by default):
+#   sentence-transformers   -> FINLENS_EMBEDDER=st (bge-small) and FINLENS_RERANKER=ce (bge-reranker)
+#   pytesseract pdf2image   -> OCR fallback for scanned PDF pages

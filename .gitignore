@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+.venv-mac-old/
+.env
+.DS_Store
+.serena/
+.idea/
+.vscode/
+.ruff_cache/
+data/*.db
+data/*.npz
+data/eval_dbs/
+data/traces.jsonl
+eval/feedback_candidates.jsonl
+.pytest_cache/
