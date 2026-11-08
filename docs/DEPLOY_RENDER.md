@@ -36,6 +36,27 @@ synthetic corpus only.
 
 Every `git push` to `main` redeploys automatically.
 
+## Turn on the free LLM (Groq) for the hosted demo
+
+By default the demo is rule-based. To let an LLM write verified answers (see the README section "LLM-written
+answers with verification"), add a **free Groq key** to the service. You do this yourself; do not paste the key
+into chat, a file or the repo.
+
+1. Create a free account and API key at https://console.groq.com (Keys → *Create API Key*). Copy it once.
+2. Render → your service → **Environment** → **Add Environment Variable**:
+   - `FINLENS_LLM_PROVIDER` = `groq`
+   - `GROQ_API_KEY` = *(paste the key; Render stores it as a secret and it is not in your repo)*
+   - optional: `FINLENS_LLM_MODEL` = `openai/gpt-oss-20b` (the default)
+3. Save. Render redeploys the service.
+4. Open the site: the header badge should read **"Groq · openai/gpt-oss-20b (free API, answers verified)"**.
+   Ask a question; accepted rewrites show a green **"LLM answer, numbers verified"** pill in the footer.
+
+Notes:
+- If Groq is rate limited, slow or the key is wrong, the site silently keeps working with the deterministic
+  answer (the pill just does not appear). Free limits are small (about 8,000 tokens/min for this model), so
+  several visitors at once will mostly see deterministic answers.
+- Revoke the key at console.groq.com if you ever expose it. Use synthetic data only on a hosted API.
+
 ## Troubleshooting
 
 | Symptom | Cause / fix |

@@ -8,7 +8,7 @@ drops unsupported numbers.
 import json
 import re
 
-from finlens import llm, tracing
+from finlens import llm, synthesis, tracing
 from finlens.agent import tools as T
 from finlens.config import Settings
 from finlens.generation import (
@@ -374,4 +374,5 @@ def answer_question(plan: QueryPlan, conn, s: Settings) -> Answer:
     ans = react(plan, run) if use_react else plan_and_execute(plan, run)
     if s.use_reflection and not ans.answer.startswith("I don't know"):
         ans = reflect(ans, run.evidence, run.computed)
-    return ans
+    # Optional: an LLM rewords the verified draft; kept only if every number and citation still checks out.
+    return synthesis.refine(plan.query, ans, run.evidence, s)

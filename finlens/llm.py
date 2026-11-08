@@ -1,8 +1,12 @@
-"""Local LLM wrapper. The only backend is Ollama.
+"""LLM wrapper with two free backends.
 
 Ollama is a local model. It is free, needs no API key, and no prompt leaves
 the machine. Start it with `ollama serve` and pull a model once
-(`ollama pull llama3.2:3b`).
+(`ollama pull llama3.2:3b`). It powers the helper steps (rewriting, grading, text-to-SQL).
+
+Groq (FINLENS_LLM_PROVIDER=groq, key in GROQ_API_KEY) is a free hosted API used for ONE call per
+question: writing the final answer, which finlens/synthesis.py then verifies. It is rate limited,
+so any 429 / timeout / bad key trips a circuit breaker and the deterministic answer is used instead.
 
 The paid Anthropic API is not called. `FINLENS_LLM_PROVIDER=anthropic`,
 `FINLENS_ALLOW_PAID`, and `ANTHROPIC_API_KEY` are ignored.
@@ -15,7 +19,10 @@ Responses use Anthropic-style content blocks (`.type` / `.text` / `.name` /
 `.input`, plus `.stop_reason` and `.usage`) so the agent loop can stay unchanged.
 """
 import json
+import os
 import re
+import time
+import urllib.error
 import urllib.request
 from types import SimpleNamespace
 
@@ -24,14 +31,50 @@ from finlens.config import local_model, settings
 
 OLLAMA_NUM_CTX = 8192          # Ollama's default context is small; RAG prompts need more
 OLLAMA_TIMEOUT_S = 300         # small local models can be slow on CPU
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+REMOTE_TIMEOUT_S = 25          # a hosted API that is slow is treated as down: the demo must not hang
+
+
+class LLMUnavailable(RuntimeError):
+    """The hosted LLM is rate-limited, down or misconfigured. Callers fall back to the deterministic path."""
+
+
+# Circuit breaker for the hosted API: after a failure we stop calling it for a while.
+_breaker_until = 0.0
+_last_call = 0.0
+
+
+def _open_breaker(seconds: float) -> None:
+    global _breaker_until
+    _breaker_until = time.monotonic() + seconds
+
+
+def breaker_open() -> bool:
+    return time.monotonic() < _breaker_until
 
 
 def enabled() -> bool:
+    """Helper steps (rewriting, grading, text-to-SQL) use the local Ollama model only."""
     return settings.llm_enabled and settings.llm_provider == "ollama"
 
 
+def groq_ready() -> bool:
+    return settings.llm_provider == "groq" and bool(os.environ.get("GROQ_API_KEY")) and not breaker_open()
+
+
+def synthesis_enabled() -> bool:
+    """Should the LLM write the final answer? Groq: needs a key and a closed breaker. Ollama: explicit opt-in."""
+    if not settings.use_synthesis:
+        return False
+    return groq_ready() if settings.llm_provider == "groq" else enabled()
+
+
 def provider() -> str:
-    return "ollama" if enabled() else "offline"
+    if enabled():
+        return "ollama"
+    if settings.llm_provider == "groq" and os.environ.get("GROQ_API_KEY"):
+        return "groq"
+    return "offline"
 
 
 # ---------------------------------------------------------------------------
@@ -113,13 +156,75 @@ def _create_ollama(system: str = "", messages: list | None = None, tools: list |
 
 
 # ---------------------------------------------------------------------------
-# Public API (same for both backends)
+# Groq backend (free hosted API, OpenAI-compatible). Plain text chat only.
+# The key is read from the environment at call time and never stored, logged or put in a trace.
+# ---------------------------------------------------------------------------
+def _throttle() -> None:
+    """Optional spacing between calls (FINLENS_LLM_MIN_INTERVAL_S) so long evals stay under token-per-minute caps."""
+    global _last_call
+    gap = float(os.environ.get("FINLENS_LLM_MIN_INTERVAL_S", "0") or 0)
+    wait = _last_call + gap - time.monotonic()
+    if gap and wait > 0:
+        time.sleep(wait)
+    _last_call = time.monotonic()
+
+
+def _create_groq(system: str = "", messages: list | None = None, max_tokens: int = 1024, **_ignored):
+    key = os.environ.get("GROQ_API_KEY")
+    if not key:
+        raise LLMUnavailable("GROQ_API_KEY is not set")
+    if breaker_open():
+        raise LLMUnavailable("hosted LLM temporarily disabled after an error")
+    chat = ([{"role": "system", "content": system}] if system else [])
+    for m in messages or []:
+        if not isinstance(m["content"], str):
+            raise LLMUnavailable("the hosted backend supports plain text messages only")
+        chat.append({"role": m["role"], "content": m["content"]})
+    body = {"model": settings.llm_model, "messages": chat, "temperature": 0, "max_completion_tokens": max_tokens}
+    req = urllib.request.Request(
+        GROQ_BASE_URL + "/chat/completions", data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}",
+                 "User-Agent": "finlens/1.0"})   # the default urllib agent is blocked by Groq's edge
+    _throttle()
+    try:
+        with urllib.request.urlopen(req, timeout=REMOTE_TIMEOUT_S) as r:
+            data = json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code == 429:
+            try:
+                wait = float(e.headers.get("retry-after", 30))
+            except (TypeError, ValueError):
+                wait = 30.0
+            _open_breaker(min(max(wait, 5.0), 120.0))
+        elif e.code in (401, 403):
+            _open_breaker(600.0)             # bad or revoked key: stop hammering the API
+        else:
+            _open_breaker(30.0)
+        raise LLMUnavailable(f"hosted LLM returned HTTP {e.code}") from None   # never include headers or the key
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        _open_breaker(30.0)
+        raise LLMUnavailable("hosted LLM unreachable or returned invalid JSON") from None
+
+    choices = data.get("choices") or [{}]
+    text = ((choices[0].get("message") or {}).get("content")) or ""
+    usage = data.get("usage") or {}
+    blocks = [SimpleNamespace(type="text", text=text)] if text else []
+    return SimpleNamespace(content=blocks, stop_reason="end_turn",
+                           usage=SimpleNamespace(input_tokens=usage.get("prompt_tokens", 0),
+                                                 output_tokens=usage.get("completion_tokens", 0)))
+
+
+# ---------------------------------------------------------------------------
+# Public API (same for all backends)
 # ---------------------------------------------------------------------------
 def create(**kwargs):
-    """Chat completion with usage tracking. Talks only to the local Ollama server."""
-    if settings.llm_provider != "ollama":
-        raise RuntimeError("The Anthropic API is disabled. Only the local Ollama backend can run.")
-    resp = _create_ollama(**kwargs)
+    """Chat completion with usage tracking. Only Ollama (local) and Groq (free hosted) can run."""
+    if settings.llm_provider == "groq":
+        resp = _create_groq(**kwargs)
+    elif settings.llm_provider == "ollama":
+        resp = _create_ollama(**kwargs)
+    else:
+        raise RuntimeError("No LLM backend is enabled (the Anthropic API is never used).")
     t = tracing.current()
     if t:
         t.add_usage(resp.usage.input_tokens, resp.usage.output_tokens)

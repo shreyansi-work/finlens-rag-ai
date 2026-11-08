@@ -16,14 +16,14 @@ TRACE_PATH = DATA_DIR / "traces.jsonl"
 
 
 LOCAL_MODEL = "llama3.2:3b"
+GROQ_DEFAULT_MODEL = "openai/gpt-oss-20b"   # on Groq's free plan; override with FINLENS_LLM_MODEL
 
 
 def _provider() -> str:
-    """ollama (free, default) | none (rule-based). Anthropic is never selected."""
+    """ollama (free local, default) | groq (free hosted API, answer synthesis only) | none (rule-based).
+    Anthropic is never selected."""
     p = os.getenv("FINLENS_LLM_PROVIDER", "ollama").strip().lower()
-    if p == "none":
-        return "none"
-    return "ollama"
+    return p if p in ("none", "groq") else "ollama"
 
 
 def _paid_model(name: str) -> bool:
@@ -62,6 +62,8 @@ def _ollama_ready() -> bool:
 def _llm_ready() -> bool:
     if _provider() == "ollama":
         return _ollama_ready()
+    if _provider() == "groq":
+        return bool(os.getenv("GROQ_API_KEY"))     # presence only; the key is read at call time, never stored
     return False
 
 
@@ -115,16 +117,22 @@ class Settings:
     cache_threshold: float = 0.95
 
     # --- LLM (optional; everything runs offline without it) ---
-    # ollama = free local model (default) | none = rule-based only. Anthropic is not used.
+    # ollama = free local model (default) | groq = free hosted API (answer synthesis only) | none = rule-based.
+    # Anthropic is not used.
     llm_provider: str = field(default_factory=lambda: _provider())
     llm_model: str = field(default_factory=lambda: _default_model())
     ollama_host: str = field(default_factory=lambda: _ollama_host())
     llm_enabled: bool = field(default_factory=lambda: _llm_ready())
+    # LLM writes the final answer from the verified draft; kept only if every number and citation checks out.
+    # On by default for groq (the one LLM call per question that fits its free token limits), off otherwise.
+    use_synthesis: bool = field(default_factory=lambda: _provider() == "groq")
 
     def __post_init__(self):
-        # Every construction path keeps the backend on Ollama (or rule-based "none").
+        # Every construction path keeps the backend on Ollama, Groq or rule-based "none".
         provider = (self.llm_provider or "").strip().lower()
-        self.llm_provider = "none" if provider == "none" else "ollama"
+        self.llm_provider = provider if provider in ("none", "groq") else "ollama"
+        if self.llm_provider == "groq" and (not self.llm_model or self.llm_model == LOCAL_MODEL):
+            self.llm_model = GROQ_DEFAULT_MODEL
         self.llm_model = local_model(self.llm_model)
         if self.llm_provider != "ollama":
             self.llm_agent = False

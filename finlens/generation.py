@@ -20,6 +20,7 @@ class Answer(BaseModel):
     unanswerable_parts: list[str] = Field(default_factory=list)
     route: str = ""
     cached: bool = False
+    synthesized: bool = False                    # True when an LLM wrote the final text and it passed verification
 
 
 def abstain(reason: str, tools_used=None, route="") -> Answer:

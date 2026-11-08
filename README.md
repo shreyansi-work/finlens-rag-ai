@@ -46,11 +46,39 @@ Ollama is not running. Set it up once with `ollama pull llama3.2:3b` (see `finle
 | `FINLENS_LLM_PROVIDER` | What runs | Cost |
 |---|---|---|
 | `ollama` (default) | Local model for the helper steps; the deterministic planner runs the tools | free |
-| `none` | Rule-based only, no LLM calls (used by the tests, CI, Docker and the hosted demo) | free |
+| `groq` | Free hosted API (`GROQ_API_KEY`), used for one call per question: writing the final answer, which is then verified (see below) | free tier, rate limited |
+| `none` | Rule-based only, no LLM calls (used by the tests, CI and Docker by default) | free |
 | `anthropic` | Ignored. The Claude API is never called; Ollama or the rule-based path is used instead | — |
 
 Change the local model with `FINLENS_LLM_MODEL=<name>`. A 3B model is too small to drive a free-form
 tool-calling loop reliably, so that loop stays off and the deterministic planner runs the tools.
+
+### LLM-written answers with verification (optional, free Groq API)
+
+By default the final answer text is composed deterministically from SQL rows, the calculator and cited
+passages. With `FINLENS_LLM_PROVIDER=groq` and a free `GROQ_API_KEY` (never committed; set it as an
+environment variable), an LLM **rewrites that verified draft into fluent prose**, and `finlens/synthesis.py`
+accepts the rewrite only if:
+
+- every citation in it already appeared in the draft (no invented sources),
+- every number in it appears in the draft or the evidence (no invented figures),
+- every number in the draft is still present (no dropped figures),
+- it does not turn an answer into "I don't know" or the reverse.
+
+Otherwise, or if the API is rate limited, slow or the key is bad (a circuit breaker stops calling it for a
+while), the deterministic draft is returned unchanged, so the LLM can change wording but never facts. It
+also neutralises prompt injection: a poisoned passage cannot make the final answer contain a new number.
+The UI shows "LLM answer, numbers verified" when a rewrite was accepted, and the trace records
+`synthesis_accepted`, `synthesis_rejected` (with the reason) or `synthesis_skipped`.
+
+Only one LLM call is made per question on Groq (the helper steps stay deterministic) so it fits the free plan's
+limits (for `openai/gpt-oss-20b`, Groq lists 30 requests/min, 1,000/day and 8,000 tokens/min; check
+https://console.groq.com/docs/rate-limits as they change). **Status:** implemented and unit-tested against a
+mocked API (`tests/test_synthesis.py`); it has not yet been benchmarked against the live API, so the numbers in
+this README are all from the deterministic mode. To measure it:
+`FINLENS_LLM_PROVIDER=groq FINLENS_LLM_MIN_INTERVAL_S=15 python scripts/evaluate.py --smoke` (the `synthesized`
+field in the summary is the share of answers an LLM wrote and verification accepted). Use synthetic data only
+with a hosted API; do not send real or private filings to a third-party service without reviewing its terms.
 
 ## What it looks like
 
@@ -282,6 +310,8 @@ These keep the project small and runnable anywhere; each is one module to swap.
 - **Small samples.** 20 unanswerable and 27 held-out questions give wide confidence intervals.
 - **Small local model.** `llama3.2:3b` on CPU is slow and cannot drive a free-form tool-calling loop.
 - **Heuristic faithfulness**, not validated against human or LLM judgement.
+- **LLM synthesis (Groq) is unbenchmarked.** It is unit-tested with a mocked API and cannot change facts
+  (verification falls back to the deterministic answer), but its live acceptance rate and latency are unmeasured.
 
 ## Deployment
 

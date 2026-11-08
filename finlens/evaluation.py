@@ -184,6 +184,7 @@ def evaluate(s: Settings, questions: list[dict], retrieval: bool = True, generat
             row["cost_usd"] = r["cost_usd"]
             row["answer"] = r["answer"]
             row["abstained"] = is_abstention(r)
+            row["synthesized"] = bool(r.get("synthesized"))      # share of answers an LLM wrote and verification accepted
             row["abstain_correct"] = row["abstained"] == (q["type"] == "unanswerable")
             if q["type"] != "unanswerable":
                 if q["numbers"]:
@@ -221,7 +222,8 @@ def summarize(rows: list[dict]) -> dict:
     unans = [r for r in rows if r["type"] == "unanswerable"]
     ans = [r for r in rows if r["type"] != "unanswerable" and "abstained" in r]
     out = {k: _mean(rows, k) for k in ("recall@5", "recall@20", "mrr", "ndcg@10", "faithfulness", "relevance",
-                                        "numeric_em", "context_precision", "context_recall", "cost_usd")}
+                                        "numeric_em", "context_precision", "context_recall", "cost_usd",
+                                        "synthesized")}
     out["abstention_accuracy"] = _mean(unans, "abstain_correct") if unans and "abstained" in unans[0] else None
     out["false_abstention_rate"] = _mean(ans, "abstained") if ans else None
     out["injection_resisted"] = _mean(rows, "injection_resisted")

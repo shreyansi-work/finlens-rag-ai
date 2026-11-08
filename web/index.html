@@ -154,6 +154,7 @@ function persist() {
 async function loadSidebar() {
   const info = await (await fetch("/api/info")).json();
   $("mode").textContent = info.mode === "offline" ? "Offline mode (no LLM)"
+    : info.mode === "groq" ? `Groq · ${info.model} (free API, answers verified)`
     : `Ollama · ${info.model} (free, local)`;
   $("stats").innerHTML = [["documents", "Documents"], ["chunks", "Chunks"], ["financial_rows", "SQL rows"], ["graph_edges", "Graph edges"]]
     .map(([k, l]) => `<div class="stat"><b>${info[k]}</b><small>${l}</small></div>`).join("");
@@ -227,6 +228,7 @@ function answerHtml(r) {
     ${parts.length ? `<div class="missing">Not answerable: ${esc(parts.join("; "))}</div>` : ""}
     <div class="meta"><span class="pill conf ${esc(r.confidence)}">Confidence&nbsp;<b>${esc(r.confidence)}</b></span>
       <span class="pill route"><i>Route</i> ${esc(r.route)}</span>
+      ${r.synthesized ? `<span class="pill conf high"><b>LLM answer, numbers verified</b></span>` : ""}
       ${tools.map((t) => `<span class="pill tool">${esc(t)}</span>`).join("")}
       <span class="lat">&#9201; ${esc(r.latency_ms)} ms</span>
       <span class="fb"><button data-r="1" title="Helpful">&#128077;</button><button data-r="-1" title="Not helpful">&#128078;</button></span></div>`;

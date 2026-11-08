@@ -26,6 +26,7 @@ STATUS_TEXT = {
     "tool:calculator": "Calculating",
     "tool:get_live_quote": "Fetching live quote",
     "tool:web_search": "Searching the web",
+    "synthesize": "Writing the answer and checking every number against the sources",
     "crag_retry": "Evidence looked weak, rewriting the query and retrying",
     "injection_blocked": "Ignored instructions hidden inside a document",
     "cache_hit": "Answered from cache",
@@ -105,8 +106,8 @@ def feedback(body: FeedbackIn):
 def info():
     c = service().conn
     count = lambda sql: c.execute(sql).fetchone()[0]  # noqa: E731
-    mode = "ollama" if llm.provider() == "ollama" else "offline"
-    return {"mode": mode, "model": local_model(settings.llm_model),
+    mode = llm.provider()                       # ollama | groq | offline
+    return {"mode": mode, "model": local_model(settings.llm_model), "synthesis": llm.synthesis_enabled(),
             "documents": count("SELECT COUNT(*) FROM documents"),
             "chunks": count("SELECT COUNT(*) FROM chunks WHERE active=1"),
             "financial_rows": count("SELECT COUNT(*) FROM financials"),
