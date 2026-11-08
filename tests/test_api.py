@@ -20,6 +20,11 @@ def test_index_is_served_as_utf8(client):
     assert "Â·" not in r.text and "Ollama ·" in r.text
 
 
+def test_page_declares_a_tab_icon(client):
+    html = client.get("/").text
+    assert 'rel="icon"' in html and "image/svg+xml" in html
+
+
 def test_info_and_documents(client):
     info = client.get("/api/info").json()
     assert info["documents"] >= 18 and info["chunks"] > 0 and info["mode"] in ("offline", "ollama")
