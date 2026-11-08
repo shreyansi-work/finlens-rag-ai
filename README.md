@@ -105,8 +105,8 @@ same page citations and "I don't know" behaviour as the sample filings.
   (80), files per workspace (3), uploads per minute and number of workspaces; zip-bomb guard for DOCX; server-generated
   file names; uploads are streamed with a size cap before parsing; every response is `Cache-Control: no-store`.
 - **Private by default.** Questions about uploads are never written to the trace log or the browser's storage,
-  and the hosted LLM is used **only if the visitor ticks an explicit opt-in** that says excerpts will be sent to
-  a third-party API. Otherwise the deterministic answer path runs entirely on the server.
+  and the hosted LLM is used **only if the visitor ticks an explicit opt-in**. The opt-in says what is sent to the
+  third-party API: the question, the document's section headings and about 5,000 characters of matching excerpts. Otherwise the deterministic answer path runs entirely on the server.
 - **How it differs from the sample filings.** Uploads have no ticker or fiscal year, so company/year filters and
   the SQL, calculator and graph tools do not apply; answers come from hybrid search over the text (and table rows
   are returned as `Column: value` pairs). DOCX has no fixed pages, so a citation points at an approximate
