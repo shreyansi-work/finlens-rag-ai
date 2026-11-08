@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="only light">
 <title>FinLens</title>
 <meta name="theme-color" content="#0f6e5c">
 <!-- Tab icon: the same logo as the header, inlined as SVG (fixed colours: tab icons cannot read CSS variables). -->
@@ -16,14 +16,8 @@
     --chip: #eef1f5; --hl: #ffe98a; --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .06);
     --radius: 14px;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0d1117; --panel: #141a22; --raised: #1a212b; --ink: #e6edf3; --muted: #93a0b2; --line: #263140;
-      --accent: #3dbb9d; --accent-ink: #06231c; --accent-soft: #112f28; --accent-line: #1d5648;
-      --warn: #e3a857; --warn-soft: #2d2412; --bad: #ff8a80; --bad-soft: #3a1f1d;
-      --chip: #1c2430; --hl: #6b5800; --shadow: 0 1px 2px rgba(0, 0, 0, .4);
-    }
-  }
+  /* Light theme only, on purpose: no dark variant, whatever the visitor's system setting. */
+  :root { color-scheme: light; }
   * { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--ink); -webkit-font-smoothing: antialiased; }
