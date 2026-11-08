@@ -1,6 +1,6 @@
 # FinLens: an agentic RAG research analyst for Indian listed companies
 
-[![ci](https://github.com/<YOUR_GITHUB_USERNAME>/finlens-rag-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/<YOUR_GITHUB_USERNAME>/finlens-rag-ai/actions/workflows/ci.yml)
+[![ci](https://github.com/shreyansi-work/finlens-rag-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/shreyansi-work/finlens-rag-ai/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.12-blue)
 
 FinLens answers questions about company filings (annual reports, quarterly results, earnings-call

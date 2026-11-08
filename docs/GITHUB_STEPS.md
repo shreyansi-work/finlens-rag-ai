@@ -67,7 +67,7 @@ git log --oneline
 
 ## 6. Push
 ```powershell
-git remote add origin https://github.com/<your-username>/finlens-rag-ai.git
+git remote add origin https://github.com/shreyansi-work/finlens-rag-ai.git
 git push -u origin main
 ```
 A browser window (Git Credential Manager) will ask you to sign in; approve it. If you are asked for a password

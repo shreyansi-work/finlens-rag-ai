@@ -28,7 +28,7 @@ the Dockerfile needs and writes a short Space README, so the push is clean.
    Username = your HF username, password = the token from step 2.
 5. **Export the project into it** (from the `finlens-rag-ai` folder):
    ```bash
-   python scripts/export_space.py ../finlens-space --github https://github.com/<github-user>/finlens-rag-ai
+   python scripts/export_space.py ../finlens-space --github https://github.com/shreyansi-work/finlens-rag-ai
    ```
    It prints the number of files and warns if any binary files slipped in (there should be none).
 6. **Push:**

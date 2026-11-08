@@ -53,7 +53,7 @@ def copy_tree(src: Path, dst: Path) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("out", help="target folder (usually your cloned Space repo)")
-    ap.add_argument("--github", default="https://github.com/<YOUR_GITHUB_USERNAME>/finlens-rag-ai")
+    ap.add_argument("--github", default="https://github.com/shreyansi-work/finlens-rag-ai")
     args = ap.parse_args()
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
