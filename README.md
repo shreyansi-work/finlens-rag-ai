@@ -92,6 +92,30 @@ Clicking a citation opens the source page with the cited sentence or table row h
 to the PDF at that page. The right panel shows the trace: route, rewritten query, filters, tool calls,
 latency and cost. Answers stream live status ("Running SQL on financial tables", "Searching filings").
 
+## Ask questions about your own documents
+
+The **My documents** tab lets a visitor upload up to 3 PDF or DOCX files and ask questions about them, with the
+same page citations and "I don't know" behaviour as the sample filings.
+
+- **No accounts.** Each browser gets an unguessable random workspace id in an HttpOnly, SameSite=Lax cookie. A
+  workspace has its own folder, SQLite database and vector index, so one visitor can never search another's
+  files. Workspaces are deleted after 3 hours idle, wiped when the server starts, and can be deleted by the user
+  at any time. (Real sign-in would not help on free hosting: the disk is wiped whenever the service sleeps.)
+- **Safe by default.** Content is validated by magic bytes, not the extension; limits on size (8 MB), PDF pages
+  (80), files per workspace (3), uploads per minute and number of workspaces; zip-bomb guard for DOCX; server-generated
+  file names; uploads are streamed with a size cap before parsing; every response is `Cache-Control: no-store`.
+- **Private by default.** Questions about uploads are never written to the trace log or the browser's storage,
+  and the hosted LLM is used **only if the visitor ticks an explicit opt-in** that says excerpts will be sent to
+  a third-party API. Otherwise the deterministic answer path runs entirely on the server.
+- **How it differs from the sample filings.** Uploads have no ticker or fiscal year, so company/year filters and
+  the SQL, calculator and graph tools do not apply; answers come from hybrid search over the text (and table rows
+  are returned as `Column: value` pairs). DOCX has no fixed pages, so a citation points at an approximate
+  "section" of about 450 words. Scanned (image-only) PDFs are rejected because no OCR engine is installed.
+- **API:** `GET /api/workspace`, `POST /api/workspace/upload` (raw body + `X-Filename`), `DELETE
+  /api/workspace/docs/{id}`, `DELETE /api/workspace`, `POST /api/workspace/ask`, `GET /api/workspace/ask/stream`,
+  `GET /api/workspace/page`, `GET /api/workspace/file/{id}`. Covered by `tests/test_workspace.py` (isolation,
+  every rejection path, expiry, opt-in and trace privacy).
+
 ## Architecture
 
 ```mermaid
@@ -145,6 +169,10 @@ finlens-rag-ai/
 │   ├── tracing.py             per-query spans, tokens, latency, cost -> data/traces.jsonl
 │   ├── evaluation.py          retrieval + generation metrics, bootstrap confidence intervals
 │   ├── service.py             FinLens.ask(): the single entry point
+│   ├── synthesis.py           LLM rewrite of the verified draft, accepted only if numbers/citations check out
+│   ├── workspaces.py          private anonymous upload workspaces: limits, validation, ingestion, expiry
+│   ├── workspace_api.py       upload / ask / delete endpoints for those workspaces
+│   ├── streaming.py           shared server-sent-events helper
 │   └── api.py                 FastAPI + SSE streaming + feedback + PDF serving
 ├── web/index.html             the UI (plain HTML/JS, no build step)
 ├── scripts/                   make_sample_data.py, ingest.py, ask.py, evaluate.py
@@ -312,6 +340,11 @@ These keep the project small and runnable anywhere; each is one module to swap.
 - **Heuristic faithfulness**, not validated against human or LLM judgement.
 - **LLM synthesis (Groq) is unbenchmarked.** It is unit-tested with a mocked API and cannot change facts
   (verification falls back to the deterministic answer), but its live acceptance rate and latency are unmeasured.
+- **Uploaded documents are a best-effort feature.** Answers are extractive (relevant sentences and table
+  rows), there is no follow-up memory, the shared index is fitted per workspace with a lightweight embedder,
+  and answer quality on arbitrary documents has not been evaluated. A free host's small CPU and memory are why
+  the size and page limits exist. Uploads vanish when the service restarts or sleeps; with a hosted LLM they are
+  only sent to it if the visitor opts in.
 
 ## Deployment
 

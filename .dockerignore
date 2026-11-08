@@ -15,3 +15,4 @@ data/eval_dbs
 data/traces.jsonl
 eval/feedback_candidates.jsonl
 docs/screenshots
+data/workspaces

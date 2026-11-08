@@ -38,6 +38,27 @@
   .docs a:hover { color: var(--accent); }
   .sample { display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); cursor: pointer; font: inherit; font-size: 13px; }
   .sample:hover { border-color: var(--accent); }
+  [hidden] { display: none !important; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; background: var(--chip); border-radius: 10px; margin-bottom: 16px; }
+  .seg button { border: 0; background: transparent; padding: 7px 6px; border-radius: 8px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .seg button.on { background: var(--panel); color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .drop { display: block; text-align: center; padding: 14px 10px; border: 1.5px dashed var(--line); border-radius: 10px; cursor: pointer; background: var(--bg); }
+  .drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .drop b { display: block; font-size: 13px; color: var(--accent); }
+  .drop small { color: var(--muted); }
+  .doc { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 7px 8px; margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; }
+  .doc .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doc .st { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+  .doc .st.ready { background: var(--accent-soft); color: var(--accent); }
+  .doc .st.error { background: #fdeceb; color: var(--bad); }
+  .doc button { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+  .doc button:hover { color: var(--bad); }
+  .doc .err { flex-basis: 100%; color: var(--bad); font-size: 11.5px; }
+  .note { color: var(--muted); font-size: 12px; margin: 10px 0; }
+  .note.err { color: var(--bad); }
+  .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; margin: 10px 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  .consent small { display: block; color: var(--muted); }
+  .linkbtn { border: 0; background: transparent; color: var(--bad); font: inherit; font-size: 12px; cursor: pointer; padding: 0; text-decoration: underline; }
   section.chat { display: flex; flex-direction: column; }
   #messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
   .empty { margin: auto; text-align: center; color: var(--muted); max-width: 420px; }
@@ -80,7 +101,7 @@
   .trace .row span:first-child { color: var(--muted); }
   .trace code { font-size: 11px; word-break: break-word; }
   .hint { color: var(--muted); font-size: 13px; }
-  @media (max-width: 1100px) { main { grid-template-columns: 1fr; height: auto; } aside.left { display: none; } aside.right { border-left: 0; border-top: 1px solid var(--line); } #messages { min-height: 60vh; } }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; height: auto; } aside.left { border-right: 0; border-bottom: 1px solid var(--line); } #panel-corpus { display: none; } aside.right { border-left: 0; border-top: 1px solid var(--line); } #messages { min-height: 60vh; } }
   @media (max-width: 600px) { .tag { display: none; } }
   @media (max-width: 600px) { #messages, form { padding: 12px 16px; } .q, .a { max-width: 100%; } }
 </style>
@@ -94,12 +115,36 @@
 </header>
 <main>
   <aside class="left">
-    <h3>Index</h3>
-    <div class="stats" id="stats"></div>
-    <h3>Try asking</h3>
-    <div id="samples"></div>
-    <h3>Corpus</h3>
-    <div id="corpus"></div>
+    <div class="seg" role="tablist" aria-label="Document source">
+      <button type="button" id="tab-corpus" class="on" role="tab">Sample filings</button>
+      <button type="button" id="tab-mine" role="tab">My documents</button>
+    </div>
+    <div id="panel-corpus">
+      <h3>Index</h3>
+      <div class="stats" id="stats"></div>
+      <h3>Try asking</h3>
+      <div id="samples"></div>
+      <h3>Corpus</h3>
+      <div id="corpus"></div>
+    </div>
+    <div id="panel-mine" hidden>
+      <h3>Your documents</h3>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple hidden>
+        <b>Upload PDF or DOCX</b>
+        <small id="limits">Click or drop a file here</small>
+      </label>
+      <p class="note" id="upmsg" role="status"></p>
+      <div id="mydocs"></div>
+      <p class="note">Private to this browser. Deleted automatically after <span id="ttl">3</span> hours of inactivity. This is a public demo: please do not upload confidential files.</p>
+      <label class="consent" id="consent-row" hidden>
+        <input type="checkbox" id="consent">
+        <span>Let a free hosted LLM (Groq) rewrite answers<small>Sends short excerpts of my documents to a third-party API. Off by default.</small></span>
+      </label>
+      <h3>Try asking</h3>
+      <div id="mysamples"></div>
+      <p class="note"><button type="button" class="linkbtn" id="wipe">Delete all my documents</button></p>
+    </div>
   </aside>
   <section class="chat">
     <div id="messages">
@@ -142,13 +187,18 @@ function freshSession() {
   return "web-" + Math.random().toString(36).slice(2, 8);
 }
 let session = localStorage.getItem(SESSION_KEY) || freshSession();
-let turns = [];
-try { turns = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch { turns = []; }
-if (!Array.isArray(turns)) turns = [];
+const turnsByScope = {corpus: [], mine: []};
+try { turnsByScope.corpus = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch { turnsByScope.corpus = []; }
+if (!Array.isArray(turnsByScope.corpus)) turnsByScope.corpus = [];
+let scope = "corpus";                 // "corpus" = bundled sample filings, "mine" = the visitor's private uploads
+let turns = turnsByScope.corpus;
+let myDocs = {};                      // doc_id -> {title, kind, status, pages} for the private workspace
+const docLabel = (id) => scope === "mine" && myDocs[id] ? myDocs[id].title : id.replace(/_/g, " ");
 
 function persist() {
+  // Only the sample-corpus chat is kept in the browser; questions about uploaded documents never are.
   localStorage.setItem(SESSION_KEY, session);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(turns.slice(-40)));
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(turnsByScope.corpus.slice(-40)));
 }
 
 async function loadSidebar() {
@@ -178,7 +228,7 @@ function renderAnswer(text) {
     const before = text.slice(last, m.index);
     const sentence = before.split(/(?<=[.!?])\s+/).filter(Boolean).pop() || "";
     parts.push(esc(before));
-    parts.push(`<button class="cite" data-doc="${m[1]}" data-page="${m[2]}" data-sent="${esc(sentence.trim())}">${m[1].replace(/_/g, " ")} · p.${m[2]}</button>`);
+    parts.push(`<button class="cite" data-doc="${m[1]}" data-page="${m[2]}" data-sent="${esc(sentence.trim())}">${esc(docLabel(m[1]))} · p.${m[2]}</button>`);
     last = m.index + m[0].length;
   }
   parts.push(esc(text.slice(last)));
@@ -186,7 +236,10 @@ function renderAnswer(text) {
 }
 
 async function showCitation(doc, page, sentence) {
-  const data = await (await fetch(`/api/page?doc=${doc}&page=${page}`)).json();
+  const mine = scope === "mine";
+  const res = await fetch(mine ? `/api/workspace/page?doc=${encodeURIComponent(doc)}&page=${page}` : `/api/page?doc=${doc}&page=${page}`);
+  if (!res.ok) { $("viewer").innerHTML = `<p class="hint">That document is no longer available.</p>`; return; }
+  const data = await res.json();
   const words = sentence.replace(/[.,;:()%]/g, " ").split(/\s+/).filter((w) => w.length > 3).slice(0, 6);
   const body = data.sections.map((s) => {
     let html = esc(s.text.replace(/^## /gm, ""));
@@ -207,8 +260,12 @@ async function showCitation(doc, page, sentence) {
     }
     return html;
   }).join("\n\n") || "<em>No text on this page.</em>";
-  $("viewer").innerHTML = `<div class="src"><span>${doc.replace(/_/g, " ")} · page ${page}</span>
-    <a href="/files/${doc}.pdf#page=${page}" target="_blank">Open PDF</a></div><div class="page">${body}</div>`;
+  const d = myDocs[doc];
+  const link = mine
+    ? (d && d.kind === "pdf" ? `<a href="/api/workspace/file/${encodeURIComponent(doc)}#page=${page}" target="_blank" rel="noopener">Open PDF</a>` : "")
+    : `<a href="/files/${doc}.pdf#page=${page}" target="_blank">Open PDF</a>`;
+  const unit = mine && d && d.kind === "docx" ? "section" : "page";   // Word has no fixed pages: about 450 words each
+  $("viewer").innerHTML = `<div class="src"><span>${esc(docLabel(doc))} · ${unit} ${page}</span>${link}</div><div class="page">${body}</div>`;
 }
 
 function showTrace(r) {
@@ -231,7 +288,7 @@ function answerHtml(r) {
       ${r.synthesized ? `<span class="pill conf high"><b>LLM answer, numbers verified</b></span>` : ""}
       ${tools.map((t) => `<span class="pill tool">${esc(t)}</span>`).join("")}
       <span class="lat">&#9201; ${esc(r.latency_ms)} ms</span>
-      <span class="fb"><button data-r="1" title="Helpful">&#128077;</button><button data-r="-1" title="Not helpful">&#128078;</button></span></div>`;
+      ${scope === "mine" ? "" : `<span class="fb"><button data-r="1" title="Helpful">&#128077;</button><button data-r="-1" title="Not helpful">&#128078;</button></span>`}</div>`;
 }
 
 function wireAnswer(box, turn) {
@@ -279,17 +336,30 @@ function restoreHistory() {
   $("messages").scrollTop = $("messages").scrollHeight;
 }
 
+const VIEWER_HINT = `<p class="hint">Click a citation to see the source page with the cited passage highlighted.</p>`;
+const TRACE_HINT = `<p class="hint">Route, rewritten query, tool calls, latency and cost for the last answer.</p>`;
+const EMPTY_MINE = `<div class="empty" id="empty">
+        <h2>Ask about your own documents</h2>
+        <p>Upload a PDF or DOCX in the My documents panel, then ask a question. Answers quote your document with citations, and FinLens says "I don't know" when it isn't there.</p>
+      </div>`;
+
 function resetChat() {
-  session = freshSession();
-  turns = [];
+  if (scope === "corpus") session = freshSession();
+  turnsByScope[scope] = [];
+  turns = turnsByScope[scope];
   persist();
-  $("messages").innerHTML = EMPTY_HTML;
-  $("viewer").innerHTML = `<p class="hint">Click a citation to see the source page with the cited passage highlighted.</p>`;
-  $("trace").innerHTML = `<p class="hint">Route, rewritten query, tool calls, latency and cost for the last answer.</p>`;
+  $("messages").innerHTML = scope === "mine" ? EMPTY_MINE : EMPTY_HTML;
+  $("viewer").innerHTML = VIEWER_HINT;
+  $("trace").innerHTML = TRACE_HINT;
 }
 
 function ask(question) {
   if (!question.trim()) return;
+  const myScope = scope;
+  if (myScope === "mine" && !Object.values(myDocs).some((d) => d.status === "ready")) {
+    setUpMsg("Upload a document and wait until it is Ready, then ask your question.", true);
+    return;
+  }
   $("empty")?.remove();
   const msgs = $("messages");
   msgs.insertAdjacentHTML("beforeend", `<div class="q">${esc(question)}</div>`);
@@ -298,31 +368,171 @@ function ask(question) {
   box.innerHTML = `<div class="status"><div>Starting</div></div>`;
   msgs.appendChild(box);
   msgs.scrollTop = msgs.scrollHeight;
-  const es = new EventSource(`/api/ask/stream?q=${encodeURIComponent(question)}&session_id=${session}`);
-  es.addEventListener("status", (e) => {
-    const st = box.querySelector(".status");
-    const text = JSON.parse(e.data).text;
-    if (st && st.lastChild.textContent !== text) st.insertAdjacentHTML("beforeend", `<div>${esc(text)}</div>`);
-  });
-  es.addEventListener("answer", (e) => {
-    es.close();
-    const r = JSON.parse(e.data);
-    const turn = {question, result: r, rating: null};
-    turns.push(turn);
-    persist();
-    if (String(r.answer).startsWith("I don't know")) box.classList.add("abstain");
-    box.innerHTML = answerHtml(r);
-    wireAnswer(box, turn);
-    const first = box.querySelector(".cite");
-    if (first) first.click();
-    showTrace(r);
-    msgs.scrollTop = msgs.scrollHeight;
-  });
-  es.addEventListener("error", (e) => {
-    es.close();
-    box.innerHTML = `<span style="color:var(--bad)">Something went wrong${e.data ? ": " + esc(JSON.parse(e.data).text) : ""}.</span>`;
-  });
+  const on = {
+    status: (d) => {
+      const st = box.querySelector(".status");
+      if (st && st.lastChild.textContent !== d.text) st.insertAdjacentHTML("beforeend", `<div>${esc(d.text)}</div>`);
+    },
+    answer: (r) => {
+      const turn = {question, result: r, rating: null};
+      turnsByScope[myScope].push(turn);
+      persist();
+      if (scope !== myScope) return;            // the visitor switched tab while this was running
+      if (String(r.answer).startsWith("I don't know")) box.classList.add("abstain");
+      box.innerHTML = answerHtml(r);
+      wireAnswer(box, turn);
+      const first = box.querySelector(".cite");
+      if (first) first.click();
+      showTrace(r);
+      msgs.scrollTop = msgs.scrollHeight;
+    },
+    error: (d) => {
+      box.innerHTML = `<span style="color:var(--bad)">Something went wrong${d && d.text ? ": " + esc(d.text) : ""}.</span>`;
+    },
+  };
+  if (myScope === "mine") {
+    // POST, so the question travels in the request body and never appears in a URL or access log.
+    streamPost("/api/workspace/ask/stream", {question, allow_llm: $("consent").checked}, on);
+  } else {
+    const es = new EventSource(`/api/ask/stream?q=${encodeURIComponent(question)}&session_id=${session}`);
+    es.addEventListener("status", (e) => on.status(JSON.parse(e.data)));
+    es.addEventListener("answer", (e) => { es.close(); on.answer(JSON.parse(e.data)); });
+    es.addEventListener("error", (e) => { es.close(); on.error(e.data ? JSON.parse(e.data) : null); });
+  }
 }
+
+async function streamPost(url, payload, on) {
+  // Minimal server-sent-events reader over fetch (EventSource cannot POST).
+  try {
+    const r = await fetch(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(payload)});
+    if (!r.ok || !r.body) {
+      const j = await r.json().catch(() => ({}));
+      on.error({text: typeof j.detail === "string" ? j.detail : ""});
+      return;
+    }
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let done = false;
+    while (!done) {
+      const chunk = await reader.read();
+      done = chunk.done;
+      buf += dec.decode(chunk.value || new Uint8Array(), {stream: !done});
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const frame = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        const ev = (frame.match(/^event: (.*)$/m) || [])[1];
+        const data = (frame.match(/^data: (.*)$/m) || [])[1];
+        if (ev && data && on[ev]) on[ev](JSON.parse(data));
+      }
+    }
+  } catch {
+    on.error(null);
+  }
+}
+
+// ---------------------------------------------------------------- private upload workspace
+const SAMPLES_MINE = ["Summarize this document.", "What are the key points?", "What risks or concerns are mentioned?"];
+let wsTimer = null;
+
+function setUpMsg(text, isError = false) {
+  $("upmsg").textContent = text;
+  $("upmsg").className = "note" + (isError ? " err" : "");
+}
+
+const docRow = (d) => {
+  const unit = d.kind === "docx" ? "sections" : "pages";
+  const status = d.status === "processing" ? "Processing&hellip;"
+    : d.status === "ready" ? `Ready &middot; ${d.pages} ${unit}` : "Failed";
+  return `<div class="doc"><span class="name" title="${esc(d.title)}">${esc(d.title)}.${esc(d.kind)}</span>` +
+    `<span class="st ${esc(d.status)}">${status}</span>` +
+    `<button type="button" data-del="${esc(d.doc_id)}" title="Delete" aria-label="Delete ${esc(d.title)}">&times;</button>` +
+    (d.error ? `<span class="err">${esc(d.error)}</span>` : "") + `</div>`;
+};
+
+async function loadWorkspace() {
+  clearTimeout(wsTimer);
+  let data;
+  try {
+    const r = await fetch("/api/workspace");
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || "Could not load your workspace.");
+    data = await r.json();
+  } catch (e) {
+    setUpMsg(e.message, true);
+    return;
+  }
+  myDocs = Object.fromEntries(data.docs.map((d) => [d.doc_id, d]));
+  $("limits").textContent = `Click or drop a file. Up to ${data.limits.max_files} files, ${data.limits.max_mb} MB each, ${data.limits.max_pdf_pages} PDF pages.`;
+  $("ttl").textContent = data.limits.ttl_hours;
+  $("consent-row").hidden = !data.synthesis;
+  if (!data.synthesis) $("consent").checked = false;
+  $("mydocs").innerHTML = data.docs.length ? data.docs.map(docRow).join("") : `<p class="note">No documents yet.</p>`;
+  $("mydocs").querySelectorAll("[data-del]").forEach((b) => b.onclick = () => deleteDoc(b.dataset.del));
+  if (data.docs.some((d) => d.status === "processing") && scope === "mine") wsTimer = setTimeout(loadWorkspace, 1500);
+}
+
+async function uploadFile(file) {
+  setUpMsg("");
+  if (!/\.(pdf|docx)$/i.test(file.name)) { setUpMsg("Only PDF and DOCX files are supported.", true); return; }
+  setUpMsg(`Uploading ${file.name}…`);
+  try {
+    const r = await fetch("/api/workspace/upload", {method: "POST", body: file, headers: {"X-Filename": encodeURIComponent(file.name)}});
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      setUpMsg(j.detail || "Upload failed.", true);
+      return;
+    }
+    setUpMsg("");
+  } catch {
+    setUpMsg("Upload failed. Check your connection.", true);
+    return;
+  }
+  loadWorkspace();
+}
+
+async function deleteDoc(id) {
+  await fetch(`/api/workspace/docs/${encodeURIComponent(id)}`, {method: "DELETE"});
+  loadWorkspace();
+}
+
+function setScope(next) {
+  scope = next;
+  turns = turnsByScope[scope];
+  $("tab-corpus").classList.toggle("on", scope === "corpus");
+  $("tab-mine").classList.toggle("on", scope === "mine");
+  $("panel-corpus").hidden = scope !== "corpus";
+  $("panel-mine").hidden = scope !== "mine";
+  $("q").placeholder = scope === "mine" ? "Ask a question about your uploaded document"
+    : "e.g. Compare Nilgiri and Sahyadri operating margins for FY25";
+  $("messages").innerHTML = scope === "mine" ? EMPTY_MINE : EMPTY_HTML;
+  $("viewer").innerHTML = VIEWER_HINT;
+  $("trace").innerHTML = TRACE_HINT;
+  restoreHistory();
+  if (scope === "mine") loadWorkspace();
+}
+
+$("tab-corpus").onclick = () => scope !== "corpus" && setScope("corpus");
+$("tab-mine").onclick = () => scope !== "mine" && setScope("mine");
+$("file").onchange = async (e) => {
+  for (const f of e.target.files) await uploadFile(f);
+  e.target.value = "";
+};
+["dragenter", "dragover"].forEach((ev) => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => $("drop").addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", async (e) => { for (const f of e.dataTransfer.files) await uploadFile(f); });
+$("wipe").onclick = async () => {
+  if (!confirm("Delete all your uploaded documents and this conversation?")) return;
+  await fetch("/api/workspace", {method: "DELETE"});
+  turnsByScope.mine = [];
+  turns = turnsByScope.mine;
+  $("messages").innerHTML = EMPTY_MINE;
+  $("viewer").innerHTML = VIEWER_HINT;
+  $("trace").innerHTML = TRACE_HINT;
+  loadWorkspace();
+};
+$("mysamples").innerHTML = SAMPLES_MINE.map((s) => `<button class="sample">${esc(s)}</button>`).join("");
+$("mysamples").querySelectorAll(".sample").forEach((b) => b.onclick = () => ask(b.textContent));
 
 $("form").onsubmit = (e) => { e.preventDefault(); ask($("q").value); $("q").value = ""; };
 $("newchat").onclick = resetChat;

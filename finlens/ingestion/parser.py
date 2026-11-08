@@ -6,9 +6,11 @@ headers/footers are removed. Scanned pages with no text layer fall back to OCR
 when pytesseract + pdf2image are installed (optional).
 """
 import re
+import zipfile
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
+from xml.etree import ElementTree
 
 from pypdf import PdfReader
 
@@ -16,6 +18,10 @@ FILENAME_RE = re.compile(
     r"^(?P<ticker>[A-Z0-9]+)_(?P<fy>FY\d{2})(?:_(?P<q>Q[1-4]))?_(?P<type>annual_report|transcript|results)$")
 NUMERIC_CELL = re.compile(r"^-?[\d,]+(\.\d+)?%?$")
 PERIOD_CELL = re.compile(r"^(Q[1-4]\s*)?FY\d{2}$")
+
+
+class DocumentError(ValueError):
+    """A problem with a user's document whose message is safe to show to them."""
 
 
 @dataclass
@@ -117,3 +123,73 @@ def parse_pdf(path: Path) -> list[Page]:
 def _looks_like_table_header(s: str) -> bool:
     cells = re.split(r"\s{2,}", s)
     return len(cells) >= 2 and all(PERIOD_CELL.match(c) for c in cells[1:])
+
+
+# ---------------------------------------------------------------------------
+# DOCX (standard library only). Word has no fixed pages, so a "page" is a block of about 450 words:
+# citations to a DOCX therefore point at an approximate page.
+# ---------------------------------------------------------------------------
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+DOCX_WORDS_PER_PAGE = 450
+MAX_DOCX_XML_BYTES = 10 * 1024 * 1024      # uncompressed word/document.xml; bounds memory on a small host and guards against zip bombs
+
+
+def _docx_text(el) -> str:
+    out = []
+    for node in el.iter():
+        if node.tag == f"{_W}t" and node.text:
+            out.append(node.text)
+        elif node.tag in (f"{_W}tab", f"{_W}br"):
+            out.append(" ")
+    return re.sub(r"\s+", " ", "".join(out)).strip()
+
+
+def parse_docx(path: Path) -> list[Page]:
+    try:
+        with zipfile.ZipFile(path) as zf:
+            info = zf.getinfo("word/document.xml")
+            if info.file_size > MAX_DOCX_XML_BYTES:
+                raise DocumentError("This DOCX is too large to process.")
+            with zf.open(info) as f:
+                data = f.read(MAX_DOCX_XML_BYTES + 1)
+        if len(data) > MAX_DOCX_XML_BYTES:
+            raise DocumentError("This DOCX is too large to process.")
+        body = ElementTree.fromstring(data).find(f"{_W}body")
+    except (zipfile.BadZipFile, KeyError, ElementTree.ParseError):
+        raise DocumentError("This does not look like a valid DOCX file.") from None
+    if body is None:
+        raise DocumentError("This DOCX has no document body.")
+
+    blocks: list[Block] = []
+    for child in body:
+        if child.tag == f"{_W}p":
+            text = _docx_text(child)
+            if not text:
+                continue
+            style = child.find(f"{_W}pPr/{_W}pStyle")
+            style_name = (style.get(f"{_W}val") if style is not None else "") or ""
+            if style_name.lower().startswith(("heading", "title")) and len(text) <= 200:
+                blocks.append(Block("heading", text))
+            else:
+                blocks.append(Block("text", text))
+        elif child.tag == f"{_W}tbl":
+            rows = [[_docx_text(tc) for tc in tr.findall(f"{_W}tc")] for tr in child.iter(f"{_W}tr")]
+            rows = [r for r in rows if any(r)]
+            if rows:
+                blocks.append(Block("table", "\n".join(" | ".join(r) for r in rows), rows))
+
+    pages, current, words = [], [], 0
+    for b in blocks:
+        if current and words >= DOCX_WORDS_PER_PAGE:
+            pages.append(Page(len(pages) + 1, current))
+            current, words = [], 0
+        current.append(b)
+        words += len(b.text.split())
+    if current:
+        pages.append(Page(len(pages) + 1, current))
+    return pages
+
+
+def parse_document(path: Path) -> list[Page]:
+    """PDF or DOCX, chosen by file extension."""
+    return parse_docx(path) if path.suffix.lower() == ".docx" else parse_pdf(path)

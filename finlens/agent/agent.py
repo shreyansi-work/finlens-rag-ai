@@ -144,6 +144,31 @@ def best_sentences(results: list[dict], query: str, limit: int = 3, must: set | 
     return chosen
 
 
+def best_table_rows(results: list[dict], query: str, limit: int = 2) -> list[str]:
+    """Uploaded documents: answer from table rows when no prose sentence matches the question.
+    A row must share a term with the question; it is rendered as 'Column: value' pairs and cited."""
+    terms = T.key_terms(query)
+    scored = []
+    for r in results:
+        lines = [x for x in r["text"].splitlines() if " | " in x]
+        if len(lines) < 2:
+            continue
+        header = [c.strip() for c in lines[0].split(" | ")]
+        header_hit = len(terms & set(content_tokens(" ".join(header))))
+        for line in lines[1:]:
+            cells = [c.strip() for c in line.split(" | ")]
+            row_hit = len(terms & set(content_tokens(line)))
+            if row_hit:
+                text = "; ".join(f"{h}: {c}" for h, c in zip(header, cells))
+                scored.append((row_hit + 0.5 * header_hit, f"{text} {cite_str(r['doc'], r['page'])}"))
+    scored.sort(key=lambda x: -x[0])
+    out = []
+    for _, item in scored:
+        if item not in out:
+            out.append(item)
+    return out[:limit]
+
+
 def person_statements(run: Run, person: str, query: str, f: dict, about: set, limit: int = 2) -> list[str]:
     """What a named executive said, taken from 'Name (Role): ...' turns in transcripts and results.
     A turn counts only if it mentions one of the `about` terms (a salary question is not answered by deal wins)."""
@@ -290,17 +315,23 @@ def plan_and_execute(plan: QueryPlan, run: Run) -> Answer:
             must = {w for m in plan.metrics for w in m.split()}
             if plan.wants_reasons and plan.metrics:
                 queries = [f"{' '.join(plan.metrics)} reasons why {sub}" for sub in queries]
+            pool = []
             for sub in queries:
                 tick = [x for x in (f.get("ticker") or []) if company_name(x).lower() in sub.lower()] or f.get("ticker")
                 res = run.call("search_filings", query=sub, ticker=tick, fiscal_years=f.get("fiscal_year"),
                                doc_type=f.get("doc_type"), variants=plan.variants or None)
+                pool += res["results"]
                 limit = 3 if len(queries) == 1 else 2
                 if plan.wants_reasons and f.get("fiscal_year") and len(f["fiscal_year"]) > 1:
                     limit = len(f["fiscal_year"])
                 parts += best_sentences(res["results"], sub, limit, must or None)
+            if run.s.generic_docs and not parts:
+                parts += best_table_rows(pool, q)            # user uploads: facts that live only in a table
 
     if not parts:
-        reason = "; ".join(run.missing) or "The filings in the corpus do not contain this information."
+        reason = "; ".join(run.missing) or ("The uploaded documents do not contain this information."
+                                            if run.s.generic_docs
+                                            else "The filings in the corpus do not contain this information.")
         a = abstain(reason, run.tools_used, plan.route)
         if run.missing:
             a.answer = f"I don't know: {reason}."

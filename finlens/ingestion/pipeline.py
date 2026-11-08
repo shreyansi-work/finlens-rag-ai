@@ -15,7 +15,7 @@ from finlens import llm
 from finlens.config import Settings
 from finlens.db import connect
 from finlens.ingestion.chunking import child_chunks, parent_chunks, sections_from_pages
-from finlens.ingestion.parser import metadata_from_filename, parse_pdf
+from finlens.ingestion.parser import DocumentError, metadata_from_filename, parse_document
 from finlens.retrieval import index
 from finlens.retrieval.embeddings import quick_embed
 from finlens.text import company_name, numbers_in, sentences, sha
@@ -41,11 +41,17 @@ def ingest_folder(folder: Path, s: Settings, log=print) -> dict:
     return stats
 
 
-def ingest_file(conn, path: Path, s: Settings) -> str:
+def ingest_file(conn, path: Path, s: Settings, meta: dict | None = None) -> str:
+    """Ingest one PDF (or DOCX). `meta` is given for user uploads: a plain document with no ticker or fiscal
+    year, so no financial tables or graph edges are extracted and only the text is indexed."""
     file_hash = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
     doc_id = path.stem
-    meta = metadata_from_filename(path)
-    meta["company"] = company_name(meta["ticker"])
+    generic = meta is not None
+    if generic:
+        meta = {"ticker": "", "fiscal_year": None, "quarter": None, "doc_type": "document", **meta, "generic": True}
+    else:
+        meta = metadata_from_filename(path)
+        meta["company"] = company_name(meta["ticker"])
 
     row = conn.execute("SELECT file_hash, version FROM documents WHERE doc_id=?", (doc_id,)).fetchone()
     if row and row["file_hash"] == file_hash:
@@ -55,8 +61,10 @@ def ingest_file(conn, path: Path, s: Settings) -> str:
         return "skipped"          # same file already ingested under another name
     version = row["version"] + 1 if row else 1
 
-    pages = parse_pdf(path)
+    pages = parse_document(path)
     sections, tables = sections_from_pages(pages)
+    if generic and sum(len(sec.text) for sec in sections) < 40:
+        raise DocumentError("No readable text found. Scanned or image-only files are not supported.")
     conn.execute("INSERT OR REPLACE INTO documents (doc_id, filename, company, ticker, fiscal_year, quarter, doc_type,"
                  " file_hash, version, num_pages) VALUES (?,?,?,?,?,?,?,?,?,?)",
                  (doc_id, path.name, meta["company"], meta["ticker"], meta["fiscal_year"], meta["quarter"],
@@ -65,9 +73,10 @@ def ingest_file(conn, path: Path, s: Settings) -> str:
 
     chunks = build_chunks(doc_id, meta, sections, tables, s)
     upsert_chunks(conn, doc_id, meta, chunks, version)
-    store_financials(conn, doc_id, meta, tables)
-    if s.build_graph:
-        store_graph(conn, doc_id, meta, pages)
+    if not generic:
+        store_financials(conn, doc_id, meta, tables)
+        if s.build_graph:
+            store_graph(conn, doc_id, meta, pages)
     if s.build_summaries:
         build_summaries(conn, doc_id, meta, version)
     conn.commit()
@@ -79,8 +88,11 @@ def ingest_file(conn, path: Path, s: Settings) -> str:
 # ---------------------------------------------------------------------------
 def contextual_header(meta: dict, section: str, text: str, s: Settings) -> str:
     """One line of context prepended before embedding (contextual retrieval)."""
-    period = " ".join(x for x in (meta["quarter"], meta["fiscal_year"]) if x)
-    base = f"This chunk is from {meta['company']} ({meta['ticker']}) {period} {DOC_TYPE_LABEL.get(meta['doc_type'], '')}, section {section}."
+    if meta.get("generic"):
+        base = f'This chunk is from the document "{meta["company"]}", section {section}.'
+    else:
+        period = " ".join(x for x in (meta["quarter"], meta["fiscal_year"]) if x)
+        base = f"This chunk is from {meta['company']} ({meta['ticker']}) {period} {DOC_TYPE_LABEL.get(meta['doc_type'], '')}, section {section}."
     if llm.enabled():
         extra = llm.complete(f"In one short sentence, say what this passage is about.\n\n{text[:1500]}")
         return f"{base} {extra}"
@@ -253,7 +265,7 @@ def build_summaries(conn, doc_id, meta, version):
         level1.append((summarize([texts[i] for i in members]), min(rows[i]["page"] for i in members)))
     level2 = summarize([t for t, _ in level1], max_sents=6) if len(level1) > 1 else None
     period = " ".join(x for x in (meta["quarter"], meta["fiscal_year"]) if x)
-    title = f"Summary of {meta['company']} {period} {DOC_TYPE_LABEL.get(meta['doc_type'], '')}"
+    title = f"Summary of {meta['company']} {period} {DOC_TYPE_LABEL.get(meta['doc_type'], '')}".replace("  ", " ").strip()
     items = [(t, p, "Section cluster summary") for t, p in level1]
     if level2:
         items.insert(0, (level2, 1, "Document summary"))

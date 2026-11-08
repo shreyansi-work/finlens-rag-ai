@@ -70,6 +70,25 @@ def numbers_in(text: str) -> list[float]:
     return out
 
 
+def tidy_page_text(text: str) -> str:
+    """Re-join lines that the PDF wrapped, keeping headings and table rows on their own lines."""
+    blocks = []
+    for block in text.split("\n\n"):
+        keep, prose = [], []
+        for line in block.splitlines():
+            if line.startswith("## ") or " | " in line:
+                if prose:
+                    keep.append(" ".join(prose))
+                    prose = []
+                keep.append(line)
+            else:
+                prose.append(line.strip())
+        if prose:
+            keep.append(" ".join(prose))
+        blocks.append("\n".join(keep))
+    return "\n\n".join(blocks)
+
+
 def sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 

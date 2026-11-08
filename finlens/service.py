@@ -17,8 +17,12 @@ class FinLens:
         self.years = [r[0] for r in self.conn.execute(
             "SELECT DISTINCT fiscal_year FROM documents WHERE fiscal_year IS NOT NULL ORDER BY fiscal_year")]
 
-    def ask(self, question: str, session_id: str = "default", on_event=None, use_memory: bool = True) -> dict:
-        trace = tracing.start_trace(question)
+    def ask(self, question: str, session_id: str = "default", on_event=None, use_memory: bool = True,
+            allow_llm: bool | None = None, persist_trace: bool = True) -> dict:
+        """allow_llm=False forbids the hosted LLM for this question (used for private uploads unless the user
+        opted in); None keeps the configured behaviour. persist_trace=False keeps the question out of the log."""
+        s = self.s if allow_llm is None else self.s.with_(use_synthesis=self.s.use_synthesis and allow_llm)
+        trace = tracing.start_trace(question, persist_trace)
         if on_event:
             trace.listeners.append(on_event)
         mem = memory.get(session_id) if use_memory else memory.Memory()
@@ -36,7 +40,7 @@ class FinLens:
             answer = Answer(**{**cached, "cached": True})
         else:
             with trace.span("agent", route=plan.route):
-                answer = answer_question(plan, self.conn, self.s)
+                answer = answer_question(plan, self.conn, s)
             if self.s.use_cache and not answer.answer.startswith("I don't know"):
                 cache.store(self.conn, plan.query, answer.model_dump())
 

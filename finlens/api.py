@@ -2,35 +2,24 @@
 
 Run:  uvicorn finlens.api:app --port 8000
 """
-import asyncio
 import json
 import threading
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from finlens import llm, tracing
 from finlens.config import RAW_DIR, ROOT, local_model, settings
 from finlens.service import FinLens
+from finlens.streaming import STATUS_TEXT, sse  # noqa: F401  (STATUS_TEXT re-exported for compatibility)
+from finlens.text import tidy_page_text
+from finlens.workspace_api import router as workspace_router
 
 app = FastAPI(title="FinLens")
+app.include_router(workspace_router)
 _app: FinLens | None = None
 _lock = threading.Lock()
-
-STATUS_TEXT = {
-    "understand": "Understanding the question",
-    "tool:search_filings": "Searching filings",
-    "tool:query_financials": "Running SQL on financial tables",
-    "tool:graph_lookup": "Looking up relationships",
-    "tool:calculator": "Calculating",
-    "tool:get_live_quote": "Fetching live quote",
-    "tool:web_search": "Searching the web",
-    "synthesize": "Writing the answer and checking every number against the sources",
-    "crag_retry": "Evidence looked weak, rewriting the query and retrying",
-    "injection_blocked": "Ignored instructions hidden inside a document",
-    "cache_hit": "Answered from cache",
-}
 
 
 def service() -> FinLens:
@@ -66,31 +55,10 @@ def ask(body: AskIn):
 @app.get("/api/ask/stream")
 async def ask_stream(q: str, session_id: str = "web"):
     """Server-sent events: live status lines, then the final answer."""
-    loop = asyncio.get_running_loop()
-    queue: asyncio.Queue = asyncio.Queue()
-
-    def on_event(name, data):
-        if name in STATUS_TEXT:
-            loop.call_soon_threadsafe(queue.put_nowait, ("status", {"text": STATUS_TEXT[name]}))
-
-    def worker():
-        try:
-            with _lock:
-                result = service().ask(q, session_id, on_event=on_event)
-            loop.call_soon_threadsafe(queue.put_nowait, ("answer", result))
-        except Exception as e:  # surface errors to the UI instead of hanging
-            loop.call_soon_threadsafe(queue.put_nowait, ("error", {"text": str(e)}))
-
-    threading.Thread(target=worker, daemon=True).start()
-
-    async def events():
-        while True:
-            kind, data = await queue.get()
-            yield f"event: {kind}\ndata: {json.dumps(data, default=str)}\n\n"
-            if kind in ("answer", "error"):
-                break
-
-    return StreamingResponse(events(), media_type="text/event-stream")
+    def run(on_event):
+        with _lock:
+            return service().ask(q, session_id, on_event=on_event)
+    return await sse(run)
 
 
 @app.post("/api/feedback")
@@ -127,26 +95,7 @@ def page(doc: str, page: int):
     rows = service().conn.execute(
         "SELECT section, text FROM chunks WHERE doc_id=? AND page=? AND active=1 AND level='parent' ORDER BY chunk_id",
         (doc, page)).fetchall()
-    return {"doc": doc, "page": page, "sections": [{"section": r["section"], "text": _tidy(r["text"])} for r in rows]}
-
-
-def _tidy(text: str) -> str:
-    """Re-join lines that the PDF wrapped, keeping headings and table rows on their own lines."""
-    blocks = []
-    for block in text.split("\n\n"):
-        keep, prose = [], []
-        for line in block.splitlines():
-            if line.startswith("## ") or " | " in line:
-                if prose:
-                    keep.append(" ".join(prose))
-                    prose = []
-                keep.append(line)
-            else:
-                prose.append(line.strip())
-        if prose:
-            keep.append(" ".join(prose))
-        blocks.append("\n".join(keep))
-    return "\n\n".join(blocks)
+    return {"doc": doc, "page": page, "sections": [{"section": r["section"], "text": tidy_page_text(r["text"])} for r in rows]}
 
 
 @app.get("/api/traces")

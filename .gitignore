@@ -14,3 +14,4 @@ data/eval_dbs/
 data/traces.jsonl
 eval/feedback_candidates.jsonl
 .pytest_cache/
+data/workspaces/

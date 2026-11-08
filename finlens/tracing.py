@@ -16,9 +16,10 @@ _current = contextvars.ContextVar("trace", default=None)
 
 
 class Trace:
-    def __init__(self, question: str):
+    def __init__(self, question: str, persist: bool = True):
         self.id = uuid.uuid4().hex[:12]
         self.question = question
+        self.persist = persist     # False for private upload workspaces: nothing is written to the trace log
         self.spans = []
         self.tokens_in = self.tokens_out = 0
         self.start = time.perf_counter()
@@ -50,14 +51,15 @@ class Trace:
                   "latency_ms": round((time.perf_counter() - self.start) * 1000, 1),
                   "tokens_in": self.tokens_in, "tokens_out": self.tokens_out,
                   "cost_usd": round(self.cost_usd, 5), "answer": answer}
-        TRACE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(TRACE_PATH, "a", encoding="utf-8") as f:
-            f.write(json.dumps(record, default=str) + "\n")
+        if self.persist:
+            TRACE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with open(TRACE_PATH, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, default=str) + "\n")
         return record
 
 
-def start_trace(question: str) -> Trace:
-    t = Trace(question)
+def start_trace(question: str, persist: bool = True) -> Trace:
+    t = Trace(question, persist)
     _current.set(t)
     return t
 

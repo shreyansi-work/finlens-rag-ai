@@ -189,6 +189,14 @@ def understand(question: str, history: list[dict], s: Settings, known_years: lis
     query = contextualize(question, history) if s.use_contextualize and history else question
     metrics = find_metrics(query)
     plan = QueryPlan(original=question, query=query, metrics=metrics, known_years=known_years)
+    if s.generic_docs:
+        # Uploaded documents: no company/year metadata and no financial tables, so answer from the text only.
+        plan.metrics = []
+        plan.route = route(query, []) if s.use_routing else "vector"
+        if plan.route not in ("direct", "summary"):
+            plan.route = "vector"
+        plan.wants_reasons = bool(re.search(r"\b(why|reason|reasons|explain|driver|because)\b", query.lower()))
+        return plan
     plan.filters = extract_filters(query, known_years)
     plan.route = route(query, metrics) if s.use_routing else "vector"
     plan.forward_looking = bool(FORWARD.search(query))

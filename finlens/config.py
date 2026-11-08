@@ -112,6 +112,11 @@ class Settings:
     max_cost_usd: float = 0.05              # hard ceiling per agentic query
     allow_web_search: bool = False
 
+    # --- user-uploaded documents ---
+    # True for private upload workspaces: documents have no ticker / fiscal year, so company and year filters,
+    # SQL/graph/live routing and follow-up rewriting are skipped and every question is answered from the text.
+    generic_docs: bool = False
+
     # --- production ---
     use_cache: bool = True
     cache_threshold: float = 0.95
