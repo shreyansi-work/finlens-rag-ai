@@ -1,0 +1,17 @@
+.git
+.github
+.venv
+.venv-mac-old
+.serena
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+.DS_Store
+.env
+data/*.db
+data/*.npz
+data/eval_dbs
+data/traces.jsonl
+eval/feedback_candidates.jsonl
+docs/screenshots

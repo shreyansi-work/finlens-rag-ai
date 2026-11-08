@@ -1,0 +1,22 @@
+# docker compose up --build                 -> FinLens on http://localhost:8000 (rule-based mode)
+# docker compose --profile llm up --build   -> also starts Ollama and turns the local-LLM helpers on
+#   (first run: docker compose exec ollama ollama pull llama3.2:3b)
+services:
+  finlens:
+    build: .
+    ports:
+      - "8000:7860"
+    environment:
+      FINLENS_LLM_PROVIDER: ${FINLENS_LLM_PROVIDER:-none}
+      FINLENS_OLLAMA_HOST: http://ollama:11434
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["llm"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  ollama:
