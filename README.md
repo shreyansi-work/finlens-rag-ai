@@ -217,9 +217,9 @@ What the table says:
   quotes add a network call (up to 4 s timeout).
 - **Ollama mode (`llama3.2:3b`, CPU only):** $0 per query. Measured on a laptop with no GPU: about 8 s for
   a warm query and about 56 s when the model has to cold-load (Ollama unloads it after about 5 minutes idle).
-  All accuracy numbers above were measured in offline (rule-based) mode. The Ollama path is only covered by a
-  30-question smoke run, which found and fixed a crash when the model writes partial-column SQL; it has not
-  been benchmarked on the full set.
+  All accuracy numbers above were measured in offline (rule-based) mode. The Ollama path has **not been
+  benchmarked**: an attempted 30-question run exposed a crash when the model writes partial-column SQL
+  (fixed and unit-tested), but a complete Ollama-mode evaluation has not been finished yet.
 The Claude API is not called. `FINLENS_LLM_PROVIDER=anthropic`, `FINLENS_ALLOW_PAID`, and
 `ANTHROPIC_API_KEY` are ignored.
 
